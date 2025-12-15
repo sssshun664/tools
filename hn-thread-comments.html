@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HN Thread Comments Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f6f6ef;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background: #ff6600;
+            color: white;
+            padding: 20px;
+            margin: -20px -20px 20px -20px;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        input[type="text"] {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        input[type="text"]::placeholder {
+            color: #999;
+        }
+        button {
+            background: white;
+            color: #ff6600;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.1s;
+        }
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .thread-info {
+            background: white;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .thread-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #000;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+        .thread-meta {
+            font-size: 13px;
+            color: #828282;
+        }
+        .thread-meta a {
+            color: #ff6600;
+            text-decoration: none;
+        }
+        .thread-meta a:hover {
+            text-decoration: underline;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 16px;
+            color: #666;
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #ddd;
+            border-top-color: #ff6600;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .error {
+            background: #fee;
+            color: #c00;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #828282;
+        }
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        .comment-card {
+            background: white;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: box-shadow 0.2s;
+            position: relative;
+        }
+        .comment-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .rank-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #ff6600;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+        }
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            gap: 10px;
+            padding-right: 40px;
+        }
+        .comment-meta {
+            flex: 1;
+        }
+        .author {
+            font-weight: 600;
+            color: #ff6600;
+            font-size: 14px;
+        }
+        .comment-stats {
+            color: #828282;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+        .points {
+            font-weight: 600;
+            color: #ff6600;
+        }
+        .copy-btn {
+            background: #f6f6ef;
+            color: #666;
+            padding: 4px 10px;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+        .copy-btn:hover {
+            background: #ff6600;
+            color: white;
+        }
+        .comment-text {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #000;
+            word-wrap: break-word;
+        }
+        .comment-text p {
+            margin: 10px 0;
+        }
+        .comment-text a {
+            color: #ff6600;
+            text-decoration: none;
+        }
+        .comment-text a:hover {
+            text-decoration: underline;
+        }
+        .comment-text pre {
+            background: #f6f6ef;
+            padding: 10px;
+            overflow-x: auto;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+        .comment-text code {
+            background: #f6f6ef;
+            padding: 2px 4px;
+            border-radius: 2px;
+            font-size: 13px;
+        }
+        .comment-footer {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e6e6e6;
+        }
+        .view-comment-link {
+            color: #ff6600;
+            text-decoration: none;
+            font-size: 13px;
+        }
+        .view-comment-link:hover {
+            text-decoration: underline;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 10px;
+            }
+            header {
+                margin: -10px -10px 15px -10px;
+                padding: 15px;
+            }
+            h1 {
+                font-size: 20px;
+            }
+            .input-group {
+                flex-direction: column;
+            }
+            input[type="text"] {
+                width: 100%;
+            }
+            .comment-card {
+                padding: 15px;
+            }
+            .rank-badge {
+                top: 10px;
+                right: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💬 HN Thread Comments Viewer</h1>
+            <p style="font-size: 14px; opacity: 0.9; margin-bottom: 10px;">View top 5 comments from any Hacker News thread</p>
+            <div class="input-group">
+                <input type="text" id="thread-input" placeholder="Enter HN URL or ID (e.g., https://news.ycombinator.com/item?id=12345678 or 12345678)">
+                <button id="load-btn">🔍 Load Thread</button>
+            </div>
+        </header>
+
+        <div id="error-container"></div>
+        <div id="thread-info-container"></div>
+        <div id="loading" class="loading" style="display: none;">
+            <div class="loading-spinner"></div>
+            Loading comments...
+        </div>
+        <div id="comments-container"></div>
+        <div id="empty-state" class="empty-state">
+            <div class="empty-state-icon">📝</div>
+            <p>Enter a Hacker News thread URL or ID above to view the top comments</p>
+        </div>
+    </div>
+
+    <script>
+        let currentThread = null;
+        const HN_API_BASE = 'https://hacker-news.firebaseio.com/v0';
+        const MAX_COMMENTS = 5;
+
+        // Parse thread ID from URL or direct ID
+        function parseThreadId(input) {
+            input = input.trim();
+
+            // Direct ID
+            if (/^\d+$/.test(input)) {
+                return input;
+            }
+
+            // HN URL
+            const match = input.match(/item\?id=(\d+)/);
+            if (match) {
+                return match[1];
+            }
+
+            return null;
+        }
+
+        // Fetch item data from HN API
+        async function fetchItem(id) {
+            const response = await fetch(`${HN_API_BASE}/item/${id}.json`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        }
+
+        // Recursively fetch all comments with their scores
+        async function fetchAllComments(commentIds) {
+            if (!commentIds || commentIds.length === 0) return [];
+
+            const comments = await Promise.all(
+                commentIds.map(id => fetchItem(id).catch(() => null))
+            );
+
+            return comments.filter(c => c && !c.deleted && !c.dead && c.text);
+        }
+
+        // Flatten nested comments
+        async function getAllCommentsRecursive(commentIds, depth = 0, maxDepth = 10) {
+            if (!commentIds || commentIds.length === 0 || depth > maxDepth) return [];
+
+            const comments = await fetchAllComments(commentIds);
+            let allComments = [...comments];
+
+            // Recursively fetch child comments
+            for (const comment of comments) {
+                if (comment.kids && comment.kids.length > 0) {
+                    const childComments = await getAllCommentsRecursive(comment.kids, depth + 1, maxDepth);
+                    allComments = allComments.concat(childComments);
+                }
+            }
+
+            return allComments;
+        }
+
+        // Load and display thread
+        async function loadThread() {
+            const input = document.getElementById('thread-input').value;
+            const threadId = parseThreadId(input);
+
+            if (!threadId) {
+                showError('Invalid input. Please enter a valid HN URL or ID.');
+                return;
+            }
+
+            try {
+                showLoading(true);
+                clearError();
+                hideEmptyState();
+                document.getElementById('comments-container').innerHTML = '';
+                document.getElementById('thread-info-container').innerHTML = '';
+
+                // Fetch thread data
+                const thread = await fetchItem(threadId);
+
+                if (!thread) {
+                    throw new Error('Thread not found');
+                }
+
+                if (thread.type !== 'story' && thread.type !== 'poll') {
+                    throw new Error('This is not a story or poll. Please enter a story ID.');
+                }
+
+                currentThread = thread;
+
+                // Display thread info
+                displayThreadInfo(thread);
+
+                // Fetch all comments
+                if (!thread.kids || thread.kids.length === 0) {
+                    document.getElementById('comments-container').innerHTML = '<div class="empty-state"><div class="empty-state-icon">💭</div><p>This thread has no comments yet.</p></div>';
+                    return;
+                }
+
+                const allComments = await getAllCommentsRecursive(thread.kids);
+
+                if (allComments.length === 0) {
+                    document.getElementById('comments-container').innerHTML = '<div class="empty-state"><div class="empty-state-icon">💭</div><p>No comments found in this thread.</p></div>';
+                    return;
+                }
+
+                // Sort by score (points) and take top 5
+                const topComments = allComments
+                    .filter(c => c.score !== undefined)
+                    .sort((a, b) => (b.score || 0) - (a.score || 0))
+                    .slice(0, MAX_COMMENTS);
+
+                if (topComments.length === 0) {
+                    document.getElementById('comments-container').innerHTML = '<div class="empty-state"><div class="empty-state-icon">💭</div><p>No scored comments found in this thread.</p></div>';
+                    return;
+                }
+
+                displayComments(topComments);
+
+            } catch (error) {
+                showError(`Failed to load thread: ${error.message}`);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Display thread information
+        function displayThreadInfo(thread) {
+            const container = document.getElementById('thread-info-container');
+            const threadUrl = `https://news.ycombinator.com/item?id=${thread.id}`;
+
+            container.innerHTML = `
+                <div class="thread-info">
+                    <div class="thread-title">${escapeHtml(thread.title || 'Untitled')}</div>
+                    <div class="thread-meta">
+                        by <strong>${escapeHtml(thread.by || 'unknown')}</strong>
+                        • ${thread.score || 0} points
+                        • ${getRelativeTime(thread.time)}
+                        • <a href="${threadUrl}" target="_blank">View on HN ↗</a>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Display top comments
+        function displayComments(comments) {
+            const container = document.getElementById('comments-container');
+
+            container.innerHTML = comments.map((comment, idx) => {
+                const commentUrl = `https://news.ycombinator.com/item?id=${comment.id}`;
+
+                return `
+                    <div class="comment-card">
+                        <div class="rank-badge">${idx + 1}</div>
+                        <div class="comment-header">
+                            <div class="comment-meta">
+                                <div class="author">${escapeHtml(comment.by || 'unknown')}</div>
+                                <div class="comment-stats">
+                                    <span class="points">${comment.score || 0} points</span>
+                                    • ${getRelativeTime(comment.time)}
+                                </div>
+                            </div>
+                            <button class="copy-btn" onclick="copyComment(${idx})">📋 Copy</button>
+                        </div>
+                        <div class="comment-text">${comment.text}</div>
+                        <div class="comment-footer">
+                            <a href="${commentUrl}" target="_blank" class="view-comment-link">View on Hacker News ↗</a>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Store comments for copy function
+            window.topComments = comments;
+        }
+
+        // Copy comment text
+        function copyComment(idx) {
+            const comment = window.topComments[idx];
+            if (!comment) return;
+
+            const text = stripHtml(comment.text);
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = event.target;
+                const orig = btn.textContent;
+                btn.textContent = '✓ Copied!';
+                setTimeout(() => btn.textContent = orig, 2000);
+            }).catch(err => {
+                alert('Failed to copy to clipboard');
+            });
+        }
+
+        // Get relative time
+        function getRelativeTime(timestamp) {
+            const seconds = Math.floor(Date.now() / 1000 - timestamp);
+            if (seconds < 60) return 'just now';
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+            const days = Math.floor(hours / 24);
+            if (days < 30) return `${days} day${days > 1 ? 's' : ''} ago`;
+            const months = Math.floor(days / 30);
+            if (months < 12) return `${months} month${months > 1 ? 's' : ''} ago`;
+            const years = Math.floor(months / 12);
+            return `${years} year${years > 1 ? 's' : ''} ago`;
+        }
+
+        // UI helper functions
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+            document.getElementById('load-btn').disabled = show;
+        }
+
+        function showError(message) {
+            document.getElementById('error-container').innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
+        }
+
+        function clearError() {
+            document.getElementById('error-container').innerHTML = '';
+        }
+
+        function hideEmptyState() {
+            document.getElementById('empty-state').style.display = 'none';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function stripHtml(html) {
+            const div = document.createElement('div');
+            div.innerHTML = html;
+            return div.textContent || div.innerText || '';
+        }
+
+        // Event listeners
+        document.getElementById('load-btn').addEventListener('click', loadThread);
+        document.getElementById('thread-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') loadThread();
+        });
+
+        // Check for ID in URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const threadId = urlParams.get('id');
+        if (threadId) {
+            document.getElementById('thread-input').value = threadId;
+            loadThread();
+        }
+    </script>
+</body>
+</html>
