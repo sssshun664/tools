@@ -271,7 +271,7 @@
     <div class="container">
         <header>
             <h1>💬 HN Thread Comments Viewer</h1>
-            <p style="font-size: 14px; opacity: 0.9; margin-bottom: 10px;">View top 5 comments from any Hacker News thread</p>
+            <p style="font-size: 14px; opacity: 0.9; margin-bottom: 10px;">View top 5 most discussed comments (ranked by reply count)</p>
             <div class="input-group">
                 <input type="text" id="thread-input" placeholder="Enter HN URL or ID (e.g., https://news.ycombinator.com/item?id=12345678 or 12345678)">
                 <button id="load-btn">🔍 Load Thread</button>
@@ -332,7 +332,21 @@
             return comments.filter(c => c && !c.deleted && !c.dead && c.text);
         }
 
-        // Flatten nested comments
+        // Count total descendants recursively
+        function countDescendants(comment, allCommentsMap) {
+            if (!comment.kids || comment.kids.length === 0) return 0;
+
+            let total = comment.kids.length;
+            for (const kidId of comment.kids) {
+                const kid = allCommentsMap.get(kidId);
+                if (kid) {
+                    total += countDescendants(kid, allCommentsMap);
+                }
+            }
+            return total;
+        }
+
+        // Flatten nested comments and calculate reply counts
         async function getAllCommentsRecursive(commentIds, depth = 0, maxDepth = 10) {
             if (!commentIds || commentIds.length === 0 || depth > maxDepth) return [];
 
@@ -396,14 +410,34 @@
                     return;
                 }
 
-                // Sort by score (points) and take top 5
+                // Create a map for efficient lookup
+                const commentsMap = new Map();
+                allComments.forEach(c => commentsMap.set(c.id, c));
+
+                // Calculate direct replies and total descendants for each comment
+                allComments.forEach(comment => {
+                    comment.directReplies = comment.kids ? comment.kids.length : 0;
+                    comment.totalDescendants = countDescendants(comment, commentsMap);
+                });
+
+                // Sort by direct replies (primary) and total descendants (secondary)
                 const topComments = allComments
-                    .filter(c => c.score !== undefined)
-                    .sort((a, b) => (b.score || 0) - (a.score || 0))
+                    .sort((a, b) => {
+                        // Primary: direct replies
+                        if (b.directReplies !== a.directReplies) {
+                            return b.directReplies - a.directReplies;
+                        }
+                        // Secondary: total descendants
+                        if (b.totalDescendants !== a.totalDescendants) {
+                            return b.totalDescendants - a.totalDescendants;
+                        }
+                        // Tertiary: newer first
+                        return b.time - a.time;
+                    })
                     .slice(0, MAX_COMMENTS);
 
                 if (topComments.length === 0) {
-                    document.getElementById('comments-container').innerHTML = '<div class="empty-state"><div class="empty-state-icon">💭</div><p>No scored comments found in this thread.</p></div>';
+                    document.getElementById('comments-container').innerHTML = '<div class="empty-state"><div class="empty-state-icon">💭</div><p>No comments found in this thread.</p></div>';
                     return;
                 }
 
@@ -440,6 +474,13 @@
 
             container.innerHTML = comments.map((comment, idx) => {
                 const commentUrl = `https://news.ycombinator.com/item?id=${comment.id}`;
+                const directReplies = comment.directReplies || 0;
+                const totalReplies = comment.totalDescendants || 0;
+
+                // Format reply text
+                const replyText = totalReplies > directReplies
+                    ? `💬 <strong>${totalReplies} ${totalReplies === 1 ? 'reply' : 'replies'}</strong> (${directReplies} direct)`
+                    : `💬 <strong>${directReplies} ${directReplies === 1 ? 'reply' : 'replies'}</strong>`;
 
                 return `
                     <div class="comment-card">
@@ -448,7 +489,7 @@
                             <div class="comment-meta">
                                 <div class="author">${escapeHtml(comment.by || 'unknown')}</div>
                                 <div class="comment-stats">
-                                    <span class="points">${comment.score || 0} points</span>
+                                    ${replyText}
                                     • ${getRelativeTime(comment.time)}
                                 </div>
                             </div>
