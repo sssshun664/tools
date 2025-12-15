@@ -1,19 +1,22 @@
 # HN Thread Comments Viewer
 
-A single-file HTML tool for viewing the top 5 comments from specific Hacker News threads.
+A single-file HTML tool for viewing the top 5 most discussed comments from specific Hacker News threads.
 
 ## Description
 
-This tool allows you to view the best comments from any Hacker News story or discussion thread. Simply enter a thread URL or ID, and it will fetch all comments, rank them by score (points), and display the top 5 in a clean, readable format.
+This tool allows you to discover the most engaging comments from any Hacker News story or discussion thread. Simply enter a thread URL or ID, and it will fetch all comments, rank them by reply count (number of responses), and display the top 5 most discussed comments in a clean, readable format.
+
+The tool identifies "best" comments by the number of replies they receive—comments with more replies indicate active discussion and engagement from the community.
 
 ## Features
 
 - **Thread Input**: Supports both HN URLs and direct thread IDs
 - **Smart Parsing**: Automatically extracts thread ID from full URLs
 - **Recursive Fetching**: Retrieves all comments including nested replies
-- **Score-Based Ranking**: Sorts comments by points to show the most valuable contributions
-- **Top 5 Display**: Focuses on the highest-quality comments
-- **Rich Metadata**: Shows author, score, and posting time for each comment
+- **Reply-Based Ranking**: Sorts comments by reply count to show the most discussed contributions
+- **Dual Metrics**: Shows both direct replies and total reply count (including nested responses)
+- **Top 5 Display**: Focuses on the most actively discussed comments
+- **Rich Metadata**: Shows author, reply counts, and posting time for each comment
 - **Direct Links**: One-click access to view comments on Hacker News
 - **Copy Function**: Easy one-click copying of comment text
 - **URL Parameters**: Support for `?id=12345678` for direct linking
@@ -62,15 +65,20 @@ Thread IDs can be found in the URL of any Hacker News story or discussion:
 1. **Input Parsing**: Extracts thread ID from URL or direct input
 2. **Thread Fetching**: Retrieves thread metadata (title, author, score)
 3. **Comment Fetching**: Recursively fetches all comments and nested replies
-4. **Ranking**: Sorts all comments by score (points)
-5. **Display**: Shows top 5 comments with full metadata and formatting
+4. **Reply Counting**: Calculates both direct replies and total descendants for each comment
+5. **Ranking**: Sorts comments by:
+   - Primary: Direct reply count (immediate responses)
+   - Secondary: Total descendants (all nested replies)
+   - Tertiary: Timestamp (newer first)
+6. **Display**: Shows top 5 most discussed comments with reply metrics and formatting
 
 ## Example Use Cases
 
-- **Research**: Quickly find the most insightful comments on technical discussions
-- **Learning**: Identify expert opinions and valuable insights
-- **Curation**: Find the best responses to a particular topic
-- **Analysis**: Study high-quality contributions to HN threads
+- **Research**: Quickly identify the most debated points in technical discussions
+- **Learning**: Find comments that sparked the most conversation and engagement
+- **Curation**: Discover which topics generated the most community interest
+- **Analysis**: Study discussion patterns and controversial or thought-provoking comments
+- **Community Insight**: Understand what aspects of a story resonated most with readers
 
 ## API Reference
 
@@ -83,12 +91,14 @@ This tool uses the official Hacker News API:
   - `by`: Author username
   - `time`: Unix timestamp
   - `text`: Comment HTML
-  - `score`: Points/upvotes
-  - `kids`: Array of child comment IDs
+  - `kids`: Array of child comment IDs (used for reply counting)
+  - `score`: Points/upvotes (only available for stories, not typically for comments)
 
 ## Limitations
 
-- Only shows top 5 comments (by design for focused reading)
+- Only shows top 5 comments (by design for focused reading on most discussed topics)
+- Ranking is based on reply count, not comment quality or score
+- Comments with many replies may be controversial rather than insightful
 - Requires active internet connection (no offline mode)
 - Large threads (1000+ comments) may take a few seconds to load
 - Dead or deleted comments are filtered out
