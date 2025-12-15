@@ -192,31 +192,25 @@
         let refreshTimer;
         let countdownTimer;
         const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
-        const RSS_URL = 'https://hnrss.org/bestcomments';
+        const FEED_URL = 'https://hnrss.org/bestcomments?format=jsonfeed';
 
         async function fetchComments() {
             try {
                 showLoading(true);
                 clearError();
 
-                // Use CORS proxy to avoid CORS issues
-                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(RSS_URL)}`;
-                const response = await fetch(proxyUrl);
+                // Fetch JSON Feed directly (supports CORS)
+                const response = await fetch(FEED_URL);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-                const data = await response.json();
-                const text = data.contents;
+                const feed = await response.json();
 
-                const parser = new DOMParser();
-                const xml = parser.parseFromString(text, 'text/xml');
-                const items = xml.querySelectorAll('item');
-
-                comments = Array.from(items).map(item => ({
-                    author: item.querySelector('creator')?.textContent || item.querySelector('author')?.textContent || 'Anonymous',
-                    text: item.querySelector('description')?.textContent || '',
-                    link: item.querySelector('link')?.textContent || item.querySelector('comments')?.textContent || '',
-                    pubDate: new Date(item.querySelector('pubDate')?.textContent || Date.now()),
-                    points: item.querySelector('title')?.textContent?.match(/\((\d+) points?\)/)?.[1] || null
+                comments = feed.items.map(item => ({
+                    author: item.author?.name || 'Anonymous',
+                    text: item.content_html || item.content_text || '',
+                    link: item.url || item.external_url || '',
+                    pubDate: new Date(item.date_published || Date.now()),
+                    points: item.title?.match(/\((\d+) points?\)/)?.[1] || null
                 }));
 
                 localStorage.setItem('hn-comments-cache', JSON.stringify(comments));
