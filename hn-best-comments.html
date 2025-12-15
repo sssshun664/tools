@@ -198,9 +198,15 @@
             try {
                 showLoading(true);
                 clearError();
-                const response = await fetch(RSS_URL);
+
+                // Use CORS proxy to avoid CORS issues
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(RSS_URL)}`;
+                const response = await fetch(proxyUrl);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const text = await response.text();
+
+                const data = await response.json();
+                const text = data.contents;
+
                 const parser = new DOMParser();
                 const xml = parser.parseFromString(text, 'text/xml');
                 const items = xml.querySelectorAll('item');
