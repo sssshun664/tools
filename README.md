@@ -5,6 +5,7 @@ A collection of single-file HTML tools for various purposes.
 ## Tools Index
 
 - `hn-best-comments.html` - View and sort Hacker News best comments with auto-refresh
+- `hn-thread-comments.html` - View top 5 comments from specific Hacker News threads
 
 ## How to Create New Tools
 
