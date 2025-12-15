@@ -90,6 +90,15 @@
         .comment-card:hover {
             box-shadow: 0 4px 8px rgba(0,0,0,0.15);
         }
+        .article-title {
+            font-weight: 700;
+            font-size: 15px;
+            color: #000;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e6e6e6;
+            line-height: 1.4;
+        }
         .comment-header {
             display: flex;
             justify-content: space-between;
@@ -192,31 +201,26 @@
         let refreshTimer;
         let countdownTimer;
         const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
-        const RSS_URL = 'https://hnrss.org/bestcomments';
+        const FEED_URL = 'https://hnrss.org/bestcomments?format=jsonfeed';
 
         async function fetchComments() {
             try {
                 showLoading(true);
                 clearError();
 
-                // Use CORS proxy to avoid CORS issues
-                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(RSS_URL)}`;
-                const response = await fetch(proxyUrl);
+                // Fetch JSON Feed directly (supports CORS)
+                const response = await fetch(FEED_URL);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-                const data = await response.json();
-                const text = data.contents;
+                const feed = await response.json();
 
-                const parser = new DOMParser();
-                const xml = parser.parseFromString(text, 'text/xml');
-                const items = xml.querySelectorAll('item');
-
-                comments = Array.from(items).map(item => ({
-                    author: item.querySelector('creator')?.textContent || item.querySelector('author')?.textContent || 'Anonymous',
-                    text: item.querySelector('description')?.textContent || '',
-                    link: item.querySelector('link')?.textContent || item.querySelector('comments')?.textContent || '',
-                    pubDate: new Date(item.querySelector('pubDate')?.textContent || Date.now()),
-                    points: item.querySelector('title')?.textContent?.match(/\((\d+) points?\)/)?.[1] || null
+                comments = feed.items.map(item => ({
+                    title: item.title || 'Untitled',
+                    author: item.author?.name || 'Anonymous',
+                    text: item.content_html || item.content_text || '',
+                    link: item.url || item.external_url || '',
+                    pubDate: new Date(item.date_published || Date.now()),
+                    points: item.title?.match(/\((\d+) points?\)/)?.[1] || null
                 }));
 
                 localStorage.setItem('hn-comments-cache', JSON.stringify(comments));
@@ -250,9 +254,10 @@
 
             container.innerHTML = sorted.map((comment, idx) => `
                 <div class="comment-card" data-idx="${idx}" data-link="${comment.link}">
+                    <div class="article-title">📰 ${escapeHtml(comment.title)}</div>
                     <div class="comment-header">
                         <div class="comment-meta">
-                            <div class="author">${escapeHtml(comment.author)}${comment.points ? ` · ${comment.points} points` : ''}</div>
+                            <div class="author">${escapeHtml(comment.author)}</div>
                             <div class="timestamp">${getRelativeTime(comment.pubDate)}</div>
                         </div>
                         <button class="copy-btn" onclick="copyComment(event, ${idx})">📋 Copy</button>
