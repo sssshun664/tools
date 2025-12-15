@@ -90,6 +90,15 @@
         .comment-card:hover {
             box-shadow: 0 4px 8px rgba(0,0,0,0.15);
         }
+        .article-title {
+            font-weight: 700;
+            font-size: 15px;
+            color: #000;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e6e6e6;
+            line-height: 1.4;
+        }
         .comment-header {
             display: flex;
             justify-content: space-between;
@@ -206,6 +215,7 @@
                 const feed = await response.json();
 
                 comments = feed.items.map(item => ({
+                    title: item.title || 'Untitled',
                     author: item.author?.name || 'Anonymous',
                     text: item.content_html || item.content_text || '',
                     link: item.url || item.external_url || '',
@@ -244,9 +254,10 @@
 
             container.innerHTML = sorted.map((comment, idx) => `
                 <div class="comment-card" data-idx="${idx}" data-link="${comment.link}">
+                    <div class="article-title">📰 ${escapeHtml(comment.title)}</div>
                     <div class="comment-header">
                         <div class="comment-meta">
-                            <div class="author">${escapeHtml(comment.author)}${comment.points ? ` · ${comment.points} points` : ''}</div>
+                            <div class="author">${escapeHtml(comment.author)}</div>
                             <div class="timestamp">${getRelativeTime(comment.pubDate)}</div>
                         </div>
                         <button class="copy-btn" onclick="copyComment(event, ${idx})">📋 Copy</button>
