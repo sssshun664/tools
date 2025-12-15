@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HN Best Comments</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f6f6ef;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background: #ff6600;
+            color: white;
+            padding: 20px;
+            margin: -20px -20px 20px -20px;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-top: 15px;
+        }
+        button {
+            background: white;
+            color: #ff6600;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: transform 0.1s;
+        }
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 16px;
+            color: #666;
+        }
+        .error {
+            background: #fee;
+            color: #c00;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .comment-card {
+            background: white;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: box-shadow 0.2s;
+        }
+        .comment-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            gap: 10px;
+        }
+        .comment-meta {
+            flex: 1;
+        }
+        .author {
+            font-weight: 600;
+            color: #ff6600;
+            font-size: 14px;
+        }
+        .timestamp {
+            color: #828282;
+            font-size: 13px;
+            margin-top: 2px;
+        }
+        .copy-btn {
+            background: #f6f6ef;
+            color: #666;
+            padding: 4px 10px;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+        .copy-btn:hover {
+            background: #ff6600;
+            color: white;
+        }
+        .comment-text {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #000;
+            word-wrap: break-word;
+        }
+        .comment-text p {
+            margin: 10px 0;
+        }
+        .comment-text a {
+            color: #ff6600;
+            text-decoration: none;
+        }
+        .comment-text a:hover {
+            text-decoration: underline;
+        }
+        .comment-text pre {
+            background: #f6f6ef;
+            padding: 10px;
+            overflow-x: auto;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .comment-text code {
+            background: #f6f6ef;
+            padding: 2px 4px;
+            border-radius: 2px;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 10px;
+            }
+            header {
+                margin: -10px -10px 15px -10px;
+                padding: 15px;
+            }
+            h1 {
+                font-size: 20px;
+            }
+            .comment-card {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔥 HN Best Comments</h1>
+            <div class="info">
+                <span id="comment-count">Loading...</span>
+                <span id="last-update">Never</span>
+                <span id="next-refresh"></span>
+            </div>
+            <div class="controls">
+                <button id="refresh-btn">🔄 Refresh</button>
+                <button id="sort-btn">Sort: Newest First</button>
+            </div>
+        </header>
+        <div id="error-container"></div>
+        <div id="loading" class="loading">Loading best comments...</div>
+        <div id="comments-container"></div>
+    </div>
+
+    <script>
+        let comments = [];
+        let sortNewest = true;
+        let refreshTimer;
+        let countdownTimer;
+        const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+        const RSS_URL = 'https://hnrss.org/bestcomments';
+
+        async function fetchComments() {
+            try {
+                showLoading(true);
+                clearError();
+                const response = await fetch(RSS_URL);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const text = await response.text();
+                const parser = new DOMParser();
+                const xml = parser.parseFromString(text, 'text/xml');
+                const items = xml.querySelectorAll('item');
+
+                comments = Array.from(items).map(item => ({
+                    author: item.querySelector('creator')?.textContent || item.querySelector('author')?.textContent || 'Anonymous',
+                    text: item.querySelector('description')?.textContent || '',
+                    link: item.querySelector('link')?.textContent || item.querySelector('comments')?.textContent || '',
+                    pubDate: new Date(item.querySelector('pubDate')?.textContent || Date.now()),
+                    points: item.querySelector('title')?.textContent?.match(/\((\d+) points?\)/)?.[1] || null
+                }));
+
+                localStorage.setItem('hn-comments-cache', JSON.stringify(comments));
+                localStorage.setItem('hn-last-fetch', Date.now());
+
+                renderComments();
+                updateLastUpdate();
+                startRefreshTimer();
+            } catch (error) {
+                showError(`Failed to fetch comments: ${error.message}`);
+                loadFromCache();
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function loadFromCache() {
+            const cached = localStorage.getItem('hn-comments-cache');
+            if (cached) {
+                comments = JSON.parse(cached);
+                comments.forEach(c => c.pubDate = new Date(c.pubDate));
+                renderComments();
+            }
+        }
+
+        function renderComments() {
+            const container = document.getElementById('comments-container');
+            const sorted = [...comments].sort((a, b) =>
+                sortNewest ? b.pubDate - a.pubDate : a.pubDate - b.pubDate
+            );
+
+            container.innerHTML = sorted.map((comment, idx) => `
+                <div class="comment-card" data-idx="${idx}" data-link="${comment.link}">
+                    <div class="comment-header">
+                        <div class="comment-meta">
+                            <div class="author">${escapeHtml(comment.author)}${comment.points ? ` · ${comment.points} points` : ''}</div>
+                            <div class="timestamp">${getRelativeTime(comment.pubDate)}</div>
+                        </div>
+                        <button class="copy-btn" onclick="copyComment(event, ${idx})">📋 Copy</button>
+                    </div>
+                    <div class="comment-text">${comment.text}</div>
+                </div>
+            `).join('');
+
+            document.getElementById('comment-count').textContent = `${comments.length} comments`;
+
+            // Add click handlers
+            document.querySelectorAll('.comment-card').forEach(card => {
+                card.addEventListener('click', (e) => {
+                    if (!e.target.classList.contains('copy-btn')) {
+                        window.open(card.dataset.link, '_blank');
+                    }
+                });
+            });
+        }
+
+        function copyComment(event, idx) {
+            event.stopPropagation();
+            const sorted = [...comments].sort((a, b) =>
+                sortNewest ? b.pubDate - a.pubDate : a.pubDate - b.pubDate
+            );
+            const comment = sorted[idx];
+            const text = stripHtml(comment.text);
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = event.target;
+                const orig = btn.textContent;
+                btn.textContent = '✓ Copied!';
+                setTimeout(() => btn.textContent = orig, 2000);
+            });
+        }
+
+        function toggleSort() {
+            sortNewest = !sortNewest;
+            document.getElementById('sort-btn').textContent = `Sort: ${sortNewest ? 'Newest' : 'Oldest'} First`;
+            renderComments();
+        }
+
+        function getRelativeTime(date) {
+            const seconds = Math.floor((Date.now() - date) / 1000);
+            if (seconds < 60) return 'just now';
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+            const days = Math.floor(hours / 24);
+            return `${days} day${days > 1 ? 's' : ''} ago`;
+        }
+
+        function updateLastUpdate() {
+            const lastFetch = localStorage.getItem('hn-last-fetch');
+            if (lastFetch) {
+                const date = new Date(parseInt(lastFetch));
+                document.getElementById('last-update').textContent = `Updated ${getRelativeTime(date)}`;
+            }
+        }
+
+        function startRefreshTimer() {
+            clearInterval(refreshTimer);
+            clearInterval(countdownTimer);
+            let nextRefresh = REFRESH_INTERVAL;
+
+            countdownTimer = setInterval(() => {
+                nextRefresh -= 1000;
+                const minutes = Math.floor(nextRefresh / 60000);
+                const seconds = Math.floor((nextRefresh % 60000) / 1000);
+                document.getElementById('next-refresh').textContent = `Next refresh in ${minutes}:${seconds.toString().padStart(2, '0')}`;
+                if (nextRefresh <= 0) {
+                    nextRefresh = REFRESH_INTERVAL;
+                }
+            }, 1000);
+
+            refreshTimer = setInterval(fetchComments, REFRESH_INTERVAL);
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        function showError(message) {
+            document.getElementById('error-container').innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
+        }
+
+        function clearError() {
+            document.getElementById('error-container').innerHTML = '';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function stripHtml(html) {
+            const div = document.createElement('div');
+            div.innerHTML = html;
+            return div.textContent || div.innerText || '';
+        }
+
+        // Event listeners
+        document.getElementById('refresh-btn').addEventListener('click', fetchComments);
+        document.getElementById('sort-btn').addEventListener('click', toggleSort);
+
+        // Initialize
+        fetchComments();
+        setInterval(updateLastUpdate, 30000); // Update timestamps every 30 seconds
+    </script>
+</body>
+</html>
