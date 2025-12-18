@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenRouter Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: #2563eb;
+            color: white;
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .settings-toggle {
+            background: #1d4ed8;
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .settings {
+            background: white;
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            display: none;
+        }
+
+        .settings.visible {
+            display: block;
+        }
+
+        .settings-group {
+            margin-bottom: 1rem;
+        }
+
+        .settings-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+            color: #374151;
+        }
+
+        .settings-group input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+
+        .settings-group small {
+            display: block;
+            margin-top: 0.25rem;
+            color: #6b7280;
+            font-size: 0.75rem;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        .message.user {
+            background: #2563eb;
+            color: white;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+
+        .message.assistant {
+            background: white;
+            color: #1f2937;
+            align-self: flex-start;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .message.error {
+            background: #fee2e2;
+            color: #991b1b;
+            align-self: center;
+            max-width: 100%;
+        }
+
+        .usage-info {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .input-container {
+            background: white;
+            padding: 1rem;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        #messageInput {
+            flex: 1;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 1rem;
+            resize: none;
+            max-height: 120px;
+        }
+
+        #sendButton {
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            font-weight: 500;
+            min-width: 80px;
+        }
+
+        #sendButton:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        #sendButton:not(:disabled):active {
+            background: #1d4ed8;
+        }
+
+        .clear-button {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            margin-left: 0.5rem;
+        }
+
+        @media (max-width: 640px) {
+            .message {
+                max-width: 90%;
+            }
+
+            #sendButton {
+                padding: 0.75rem 1rem;
+                min-width: 60px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>OpenRouter Chat</h1>
+        <button class="settings-toggle" onclick="toggleSettings()">⚙️ 設定</button>
+    </div>
+
+    <div class="settings" id="settings">
+        <div class="settings-group">
+            <label for="apiKey">OpenRouter API Key</label>
+            <input type="password" id="apiKey" placeholder="sk-or-v1-...">
+            <small>APIキーは<a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a>で取得できます</small>
+        </div>
+        <div class="settings-group">
+            <label for="modelName">モデル名</label>
+            <input type="text" id="modelName" placeholder="google/gemini-2.0-flash-exp:free">
+            <small>デフォルト: google/gemini-2.0-flash-exp:free</small>
+        </div>
+        <div class="settings-group">
+            <label for="systemPrompt">システムプロンプト</label>
+            <textarea id="systemPrompt" rows="3" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.875rem; font-family: inherit; resize: vertical;"></textarea>
+            <small>AIの振る舞いを指定します（空欄の場合はデフォルトを使用）</small>
+        </div>
+        <button class="clear-button" onclick="clearChat()">チャット履歴をクリア</button>
+    </div>
+
+    <div class="chat-container" id="chatContainer"></div>
+
+    <div class="input-container">
+        <textarea id="messageInput" placeholder="メッセージを入力..." rows="1"></textarea>
+        <button id="sendButton" onclick="sendMessage()">送信</button>
+    </div>
+
+    <script>
+        const STORAGE_KEY_API = 'openrouter_api_key';
+        const STORAGE_KEY_MODEL = 'openrouter_model';
+        const STORAGE_KEY_SYSTEM = 'openrouter_system_prompt';
+        const STORAGE_KEY_MESSAGES = 'openrouter_messages';
+        const DEFAULT_MODEL = 'google/gemini-2.0-flash-exp:free';
+        const DEFAULT_SYSTEM_PROMPT = 'あなたは親切で知識豊富なAIアシスタントです。ユーザーの質問に丁寧に答えてください。';
+
+        let messages = [];
+        let isProcessing = false;
+
+        // Load saved settings and messages
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedApiKey = localStorage.getItem(STORAGE_KEY_API);
+            const savedModel = localStorage.getItem(STORAGE_KEY_MODEL);
+            const savedSystemPrompt = localStorage.getItem(STORAGE_KEY_SYSTEM);
+            const savedMessages = localStorage.getItem(STORAGE_KEY_MESSAGES);
+
+            if (savedApiKey) {
+                document.getElementById('apiKey').value = savedApiKey;
+            }
+
+            document.getElementById('modelName').value = savedModel || DEFAULT_MODEL;
+            document.getElementById('systemPrompt').value = savedSystemPrompt || DEFAULT_SYSTEM_PROMPT;
+
+            if (savedMessages) {
+                try {
+                    messages = JSON.parse(savedMessages);
+                    renderMessages();
+                } catch (e) {
+                    console.error('Failed to load messages:', e);
+                }
+            }
+
+            // Auto-resize textarea
+            const textarea = document.getElementById('messageInput');
+            textarea.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+            });
+
+            // Enter to send (Shift+Enter for new line)
+            textarea.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+
+            // Save settings on change
+            document.getElementById('apiKey').addEventListener('change', function() {
+                localStorage.setItem(STORAGE_KEY_API, this.value);
+            });
+
+            document.getElementById('modelName').addEventListener('change', function() {
+                localStorage.setItem(STORAGE_KEY_MODEL, this.value);
+            });
+
+            document.getElementById('systemPrompt').addEventListener('change', function() {
+                localStorage.setItem(STORAGE_KEY_SYSTEM, this.value);
+            });
+        });
+
+        function toggleSettings() {
+            const settings = document.getElementById('settings');
+            settings.classList.toggle('visible');
+        }
+
+        function renderMessages() {
+            const container = document.getElementById('chatContainer');
+            container.innerHTML = '';
+
+            messages.forEach(msg => {
+                const msgDiv = document.createElement('div');
+                msgDiv.className = `message ${msg.role}`;
+                msgDiv.textContent = msg.content;
+
+                if (msg.usage) {
+                    const usageDiv = document.createElement('div');
+                    usageDiv.className = 'usage-info';
+                    usageDiv.textContent = `トークン: ${msg.usage.totalTokens || 0} (入力: ${msg.usage.promptTokens || 0}, 出力: ${msg.usage.completionTokens || 0}${msg.usage.reasoningTokens ? `, 推論: ${msg.usage.reasoningTokens}` : ''})`;
+                    msgDiv.appendChild(usageDiv);
+                }
+
+                container.appendChild(msgDiv);
+            });
+
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function saveMessages() {
+            localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(messages));
+        }
+
+        function clearChat() {
+            if (confirm('チャット履歴を削除しますか?')) {
+                messages = [];
+                saveMessages();
+                renderMessages();
+            }
+        }
+
+        async function sendMessage() {
+            if (isProcessing) return;
+
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const modelName = document.getElementById('modelName').value.trim() || DEFAULT_MODEL;
+            const systemPrompt = document.getElementById('systemPrompt').value.trim() || DEFAULT_SYSTEM_PROMPT;
+            const messageInput = document.getElementById('messageInput');
+            const userMessage = messageInput.value.trim();
+
+            if (!apiKey) {
+                alert('APIキーを設定してください');
+                document.getElementById('settings').classList.add('visible');
+                return;
+            }
+
+            if (!userMessage) return;
+
+            // Add user message
+            messages.push({
+                role: 'user',
+                content: userMessage
+            });
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+            renderMessages();
+            saveMessages();
+
+            // Disable input
+            isProcessing = true;
+            document.getElementById('sendButton').disabled = true;
+            messageInput.disabled = true;
+
+            // Add assistant message placeholder
+            const assistantMessage = {
+                role: 'assistant',
+                content: ''
+            };
+            messages.push(assistantMessage);
+
+            try {
+                // Build messages array with system prompt
+                const apiMessages = [
+                    {
+                        role: 'system',
+                        content: systemPrompt
+                    },
+                    ...messages.filter(m => m.role !== 'error').map(m => ({
+                        role: m.role === 'assistant' ? 'assistant' : 'user',
+                        content: m.content
+                    })).slice(0, -1) // Exclude the placeholder
+                ];
+
+                const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json',
+                        'HTTP-Referer': window.location.href,
+                        'X-Title': 'OpenRouter Chat'
+                    },
+                    body: JSON.stringify({
+                        model: modelName,
+                        messages: apiMessages,
+                        stream: true,
+                        stream_options: {
+                            include_usage: true
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data === '[DONE]') continue;
+
+                            try {
+                                const parsed = JSON.parse(data);
+
+                                if (parsed.choices?.[0]?.delta?.content) {
+                                    assistantMessage.content += parsed.choices[0].delta.content;
+                                    renderMessages();
+                                }
+
+                                if (parsed.usage) {
+                                    assistantMessage.usage = {
+                                        promptTokens: parsed.usage.prompt_tokens,
+                                        completionTokens: parsed.usage.completion_tokens,
+                                        totalTokens: parsed.usage.total_tokens,
+                                        reasoningTokens: parsed.usage.reasoning_tokens
+                                    };
+                                    renderMessages();
+                                }
+                            } catch (e) {
+                                console.error('Parse error:', e);
+                            }
+                        }
+                    }
+                }
+
+                saveMessages();
+
+            } catch (error) {
+                console.error('Error:', error);
+                messages.pop(); // Remove placeholder
+                messages.push({
+                    role: 'error',
+                    content: `エラー: ${error.message}`
+                });
+                renderMessages();
+                saveMessages();
+            } finally {
+                isProcessing = false;
+                document.getElementById('sendButton').disabled = false;
+                messageInput.disabled = false;
+                messageInput.focus();
+            }
+        }
+    </script>
+</body>
+</html>
