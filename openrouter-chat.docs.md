@@ -21,7 +21,7 @@ OpenRouter APIを使用したシンプルなチャットアプリケーション
 3. OpenRouter API Keyを入力
    - APIキーは [OpenRouter](https://openrouter.ai/keys) で取得できます
 4. 使用したいモデル名を入力（任意）
-   - デフォルト: `google/gemini-2.0-flash-exp:free`
+   - デフォルト: `google/gemini-3-flash-preview`
 5. システムプロンプトを設定（任意）
    - デフォルト: 「あなたは親切で知識豊富なAIアシスタントです。ユーザーの質問に丁寧に答えてください。」
    - AIの振る舞いや役割をカスタマイズできます
@@ -47,7 +47,7 @@ OpenRouter APIを使用したシンプルなチャットアプリケーション
 
 ## 利用可能なモデル例
 
-- `google/gemini-2.0-flash-exp:free` - Gemini 2.0 Flash（無料）
+- `google/gemini-3-flash-preview` - Gemini 3 Flash Preview
 - `anthropic/claude-3.5-sonnet` - Claude 3.5 Sonnet
 - `openai/gpt-4-turbo` - GPT-4 Turbo
 - その他のモデルは [OpenRouter Models](https://openrouter.ai/models) を参照
