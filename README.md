@@ -6,6 +6,7 @@ A collection of single-file HTML tools for various purposes.
 
 - `hn-best-comments.html` - View and sort Hacker News best comments with auto-refresh
 - `hn-thread-comments.html` - View top 5 comments from specific Hacker News threads
+- `html-viewer.html` - View HTML source code of any webpage with syntax highlighting and comment extraction
 - `openrouter-chat.html` - Chat with various LLM models via OpenRouter API with streaming responses
 - `svg-viewer.html` - Preview SVG code with real-time rendering and sample templates
 

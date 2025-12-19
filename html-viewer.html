@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Viewer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            padding: 16px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 24px;
+            font-size: 28px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #1e3c72;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #1e3c72;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-height: 48px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            flex: 0 0 auto;
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .btn-secondary:active {
+            background: #e0e0e0;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 14px;
+            min-height: 40px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .code-container {
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 16px;
+            overflow-x: auto;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .code-container pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .code-container code {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .empty-state {
+            color: #999;
+            text-align: center;
+            padding: 40px 20px;
+            font-size: 14px;
+        }
+
+        .error-message {
+            color: #e53e3e;
+            background: #fff5f5;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .success-message {
+            color: #38a169;
+            background: #f0fff4;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .info-text {
+            font-size: 13px;
+            color: #666;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        .comment-item {
+            background: #f9f9f9;
+            padding: 12px;
+            border-left: 4px solid #1e3c72;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            word-wrap: break-word;
+        }
+
+        .stats {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .stat-item strong {
+            color: #1e3c72;
+            font-weight: 600;
+        }
+
+        .search-box {
+            margin-top: 12px;
+        }
+
+        .search-result {
+            background: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            padding: 8px 12px;
+            margin-top: 8px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 12px;
+            }
+
+            h1 {
+                font-size: 24px;
+                margin-bottom: 16px;
+            }
+
+            .card {
+                padding: 16px;
+            }
+
+            .section-title {
+                font-size: 16px;
+            }
+
+            .input-group {
+                flex-direction: column;
+            }
+
+            .btn-primary {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 HTML Viewer</h1>
+
+        <div class="card">
+            <div class="section-title">URLを入力</div>
+            <div class="input-group">
+                <input type="text" id="urlInput" placeholder="https://example.com" value="">
+                <button class="btn-primary" onclick="fetchHTML()">取得</button>
+            </div>
+            <p class="info-text">💡 ウェブページのURLを入力してHTMLソースを取得します</p>
+            <div id="errorMessage" class="error-message"></div>
+            <div id="successMessage" class="success-message"></div>
+        </div>
+
+        <div class="card" id="statsCard" style="display: none;">
+            <div class="section-title">📊 統計情報</div>
+            <div class="stats" id="stats"></div>
+            <div class="button-group">
+                <button class="btn-secondary btn-small" onclick="showComments()">💬 コメント抽出</button>
+                <button class="btn-secondary btn-small" onclick="copyHTML()">📋 コピー</button>
+                <button class="btn-secondary btn-small" onclick="downloadHTML()">💾 ダウンロード</button>
+            </div>
+            <div class="search-box">
+                <div class="input-group">
+                    <input type="text" id="searchInput" placeholder="テキストを検索...">
+                    <button class="btn-secondary" onclick="searchHTML()">検索</button>
+                </div>
+                <div id="searchResults"></div>
+            </div>
+        </div>
+
+        <div class="card" id="commentsCard" style="display: none;">
+            <div class="section-title">💬 HTMLコメント</div>
+            <div id="commentsContainer"></div>
+        </div>
+
+        <div class="card">
+            <div class="section-title">📄 HTMLソース</div>
+            <div id="htmlPreview" class="code-container">
+                <div class="empty-state">HTMLソースがここに表示されます</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/xml.min.js"></script>
+    <script>
+        let currentHTML = '';
+
+        async function fetchHTML() {
+            const urlInput = document.getElementById('urlInput');
+            const url = urlInput.value.trim();
+            const errorMessage = document.getElementById('errorMessage');
+            const successMessage = document.getElementById('successMessage');
+            const preview = document.getElementById('htmlPreview');
+
+            errorMessage.style.display = 'none';
+            successMessage.style.display = 'none';
+
+            if (!url) {
+                showError('URLを入力してください');
+                return;
+            }
+
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                showError('有効なURLを入力してください（http:// または https:// で始まる必要があります）');
+                return;
+            }
+
+            preview.innerHTML = '<div class="loading">HTMLを取得中</div>';
+            document.getElementById('statsCard').style.display = 'none';
+            document.getElementById('commentsCard').style.display = 'none';
+
+            try {
+                // Using allOrigins as CORS proxy
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+                const response = await fetch(proxyUrl);
+
+                if (!response.ok) {
+                    throw new Error('ページの取得に失敗しました');
+                }
+
+                const data = await response.json();
+                currentHTML = data.contents;
+
+                displayHTML(currentHTML);
+                showStats(currentHTML);
+                showSuccess('HTMLを取得しました');
+
+            } catch (error) {
+                showError('エラー: ' + error.message + ' - URLが正しいか、ページが存在するか確認してください');
+                preview.innerHTML = '<div class="empty-state">HTMLソースがここに表示されます</div>';
+            }
+        }
+
+        function displayHTML(html) {
+            const preview = document.getElementById('htmlPreview');
+            const codeBlock = document.createElement('pre');
+            const code = document.createElement('code');
+            code.className = 'language-html';
+            code.textContent = html;
+            codeBlock.appendChild(code);
+            preview.innerHTML = '';
+            preview.appendChild(codeBlock);
+            hljs.highlightElement(code);
+        }
+
+        function showStats(html) {
+            const statsCard = document.getElementById('statsCard');
+            const stats = document.getElementById('stats');
+
+            const lines = html.split('\n').length;
+            const chars = html.length;
+            const comments = (html.match(/<!--[\s\S]*?-->/g) || []).length;
+
+            stats.innerHTML = `
+                <div class="stat-item"><strong>${lines.toLocaleString()}</strong> 行</div>
+                <div class="stat-item"><strong>${chars.toLocaleString()}</strong> 文字</div>
+                <div class="stat-item"><strong>${comments}</strong> コメント</div>
+            `;
+
+            statsCard.style.display = 'block';
+        }
+
+        function showComments() {
+            const commentsCard = document.getElementById('commentsCard');
+            const container = document.getElementById('commentsContainer');
+
+            const commentMatches = currentHTML.match(/<!--[\s\S]*?-->/g);
+
+            if (!commentMatches || commentMatches.length === 0) {
+                container.innerHTML = '<div class="empty-state">HTMLコメントが見つかりませんでした</div>';
+            } else {
+                container.innerHTML = commentMatches.map(comment =>
+                    `<div class="comment-item">${escapeHTML(comment)}</div>`
+                ).join('');
+            }
+
+            commentsCard.style.display = 'block';
+            commentsCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function searchHTML() {
+            const searchInput = document.getElementById('searchInput');
+            const searchResults = document.getElementById('searchResults');
+            const query = searchInput.value.trim();
+
+            if (!query) {
+                searchResults.innerHTML = '';
+                return;
+            }
+
+            if (!currentHTML) {
+                showError('先にHTMLを取得してください');
+                return;
+            }
+
+            const lines = currentHTML.split('\n');
+            const matches = [];
+
+            lines.forEach((line, index) => {
+                if (line.toLowerCase().includes(query.toLowerCase())) {
+                    matches.push({ lineNumber: index + 1, content: line.trim() });
+                }
+            });
+
+            if (matches.length === 0) {
+                searchResults.innerHTML = '<div class="search-result">検索結果が見つかりませんでした</div>';
+            } else {
+                searchResults.innerHTML = `
+                    <div class="search-result"><strong>${matches.length}</strong> 件の結果が見つかりました</div>
+                    ${matches.slice(0, 10).map(match =>
+                        `<div class="search-result"><strong>行 ${match.lineNumber}:</strong> ${escapeHTML(match.content.substring(0, 100))}${match.content.length > 100 ? '...' : ''}</div>`
+                    ).join('')}
+                    ${matches.length > 10 ? `<div class="search-result">...他 ${matches.length - 10} 件</div>` : ''}
+                `;
+            }
+        }
+
+        function copyHTML() {
+            if (!currentHTML) {
+                showError('コピーするHTMLがありません');
+                return;
+            }
+
+            navigator.clipboard.writeText(currentHTML).then(() => {
+                showSuccess('HTMLをクリップボードにコピーしました');
+            }).catch(() => {
+                showError('コピーに失敗しました');
+            });
+        }
+
+        function downloadHTML() {
+            if (!currentHTML) {
+                showError('ダウンロードするHTMLがありません');
+                return;
+            }
+
+            const blob = new Blob([currentHTML], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'page.html';
+            a.click();
+            URL.revokeObjectURL(url);
+            showSuccess('HTMLをダウンロードしました');
+        }
+
+        function showError(message) {
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = '⚠️ ' + message;
+            errorMessage.style.display = 'block';
+            document.getElementById('successMessage').style.display = 'none';
+        }
+
+        function showSuccess(message) {
+            const successMessage = document.getElementById('successMessage');
+            successMessage.textContent = '✅ ' + message;
+            successMessage.style.display = 'block';
+            document.getElementById('errorMessage').style.display = 'none';
+            setTimeout(() => {
+                successMessage.style.display = 'none';
+            }, 3000);
+        }
+
+        function escapeHTML(html) {
+            const div = document.createElement('div');
+            div.textContent = html;
+            return div.innerHTML;
+        }
+
+        // Enter key to fetch
+        document.getElementById('urlInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                fetchHTML();
+            }
+        });
+
+        // Enter key to search
+        document.getElementById('searchInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                searchHTML();
+            }
+        });
+    </script>
+</body>
+</html>
