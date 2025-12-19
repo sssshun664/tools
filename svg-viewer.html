@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVG Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 16px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 24px;
+            font-size: 28px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-height: 48px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .btn-secondary:active {
+            background: #e0e0e0;
+        }
+
+        .preview-container {
+            min-height: 200px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed #e0e0e0;
+            overflow: auto;
+        }
+
+        .preview-container svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .empty-state {
+            color: #999;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .error-message {
+            color: #e53e3e;
+            background: #fff5f5;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .sample-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .sample-btn {
+            padding: 8px 16px;
+            background: #f5f5f5;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-height: 40px;
+        }
+
+        .sample-btn:active {
+            background: #e0e0e0;
+        }
+
+        .info-text {
+            font-size: 13px;
+            color: #666;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 12px;
+            }
+
+            h1 {
+                font-size: 24px;
+                margin-bottom: 16px;
+            }
+
+            .card {
+                padding: 16px;
+            }
+
+            textarea {
+                font-size: 13px;
+            }
+
+            .section-title {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📐 SVG Viewer</h1>
+
+        <div class="card">
+            <div class="section-title">
+                SVGコード入力
+            </div>
+            <textarea id="svgInput" placeholder="ここにSVGコードを貼り付けてください...&#10;&#10;例:&#10;<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 100 100&quot;>&#10;  <circle cx=&quot;50&quot; cy=&quot;50&quot; r=&quot;40&quot; fill=&quot;#667eea&quot; />&#10;</svg>"></textarea>
+            <div class="button-group">
+                <button class="btn-primary" onclick="renderSVG()">プレビュー</button>
+                <button class="btn-secondary" onclick="clearInput()">クリア</button>
+            </div>
+            <div id="errorMessage" class="error-message"></div>
+            <p class="info-text">💡 SVGコードを貼り付けて「プレビュー」ボタンをタップしてください</p>
+        </div>
+
+        <div class="card">
+            <div class="section-title">サンプルSVG</div>
+            <div class="sample-buttons">
+                <button class="sample-btn" onclick="loadSample('circle')">🔵 円</button>
+                <button class="sample-btn" onclick="loadSample('star')">⭐ 星</button>
+                <button class="sample-btn" onclick="loadSample('gradient')">🌈 グラデーション</button>
+                <button class="sample-btn" onclick="loadSample('path')">✏️ パス</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-title">プレビュー</div>
+            <div id="preview" class="preview-container">
+                <div class="empty-state">プレビューがここに表示されます</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const samples = {
+            circle: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <circle cx="100" cy="100" r="80" fill="#667eea" />
+  <circle cx="100" cy="100" r="60" fill="#764ba2" />
+  <circle cx="100" cy="100" r="40" fill="#667eea" />
+</svg>`,
+            star: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <path d="M100,20 L120,80 L180,80 L135,115 L155,175 L100,140 L45,175 L65,115 L20,80 L80,80 Z"
+        fill="#ffd700" stroke="#ff6b6b" stroke-width="3"/>
+</svg>`,
+            gradient: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" fill="url(#grad1)" rx="20"/>
+  <circle cx="100" cy="100" r="50" fill="white" opacity="0.8"/>
+</svg>`,
+            path: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <path d="M50,100 Q100,50 150,100 T250,100"
+        stroke="#667eea" stroke-width="4" fill="none"/>
+  <path d="M50,120 Q100,170 150,120 T250,120"
+        stroke="#764ba2" stroke-width="4" fill="none"/>
+  <circle cx="50" cy="100" r="5" fill="#ff6b6b"/>
+  <circle cx="150" cy="100" r="5" fill="#ff6b6b"/>
+</svg>`
+        };
+
+        function renderSVG() {
+            const input = document.getElementById('svgInput').value.trim();
+            const preview = document.getElementById('preview');
+            const errorMessage = document.getElementById('errorMessage');
+
+            errorMessage.style.display = 'none';
+            errorMessage.textContent = '';
+
+            if (!input) {
+                showError('SVGコードを入力してください');
+                return;
+            }
+
+            // Basic SVG validation
+            if (!input.includes('<svg') || !input.includes('</svg>')) {
+                showError('有効なSVGコードを入力してください（<svg>タグが必要です）');
+                return;
+            }
+
+            try {
+                // Create a temporary div to parse the SVG
+                const temp = document.createElement('div');
+                temp.innerHTML = input;
+
+                const svgElement = temp.querySelector('svg');
+                if (!svgElement) {
+                    showError('SVG要素が見つかりませんでした');
+                    return;
+                }
+
+                // Clear and display the SVG
+                preview.innerHTML = '';
+                preview.appendChild(svgElement.cloneNode(true));
+            } catch (error) {
+                showError('SVGの解析中にエラーが発生しました: ' + error.message);
+            }
+        }
+
+        function showError(message) {
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = '⚠️ ' + message;
+            errorMessage.style.display = 'block';
+
+            const preview = document.getElementById('preview');
+            preview.innerHTML = '<div class="empty-state">プレビューがここに表示されます</div>';
+        }
+
+        function clearInput() {
+            document.getElementById('svgInput').value = '';
+            document.getElementById('preview').innerHTML = '<div class="empty-state">プレビューがここに表示されます</div>';
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        function loadSample(type) {
+            const input = document.getElementById('svgInput');
+            input.value = samples[type];
+            renderSVG();
+        }
+
+        // Auto-render on input (with debounce)
+        let debounceTimer;
+        document.getElementById('svgInput').addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                const input = this.value.trim();
+                if (input && input.includes('<svg') && input.includes('</svg>')) {
+                    renderSVG();
+                }
+            }, 500);
+        });
+
+        // Allow Enter key in textarea (Shift+Enter for new line)
+        document.getElementById('svgInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                e.preventDefault();
+                renderSVG();
+            }
+        });
+    </script>
+</body>
+</html>
