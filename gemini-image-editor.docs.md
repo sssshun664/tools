@@ -4,7 +4,7 @@ Edit and transform images using Google's Gemini 3 Pro Image Preview model via Op
 
 ## Features
 
-- **Image Upload**: Select images from your iPhone or any device
+- **Single & Multiple Image Upload**: Select one or up to 14 images from your iPhone or any device
 - **AI-Powered Editing**: Use natural language to describe edits
 - **Multi-turn Conversations**: Iteratively refine your images through conversation
 - **Customizable Settings**: Control aspect ratio (10 options) and resolution (1K/2K/4K)
@@ -12,17 +12,46 @@ Edit and transform images using Google's Gemini 3 Pro Image Preview model via Op
 - **Conversation History**: Track your editing journey
 - **Mobile Optimized**: Designed for iPhone and touch devices
 
+## Upload Modes
+
+### Single Image Mode (Default)
+- Upload one image at a time
+- Perfect for simple edits and transformations
+- Generated image automatically becomes the base for the next edit
+- Enables iterative refinement through conversation
+
+### Multiple Images Mode (Up to 14 Images)
+- Upload up to 14 reference images
+- Combine elements from multiple images
+- Maintain character consistency across images
+- Create compositions from various sources
+- Remove individual images with the × button
+
 ## Usage
 
+### Basic Usage (Single Image)
 1. **Enter API Key**: Add your OpenRouter API key (stored in browser)
-2. **Upload Image**: Tap to select an image from your device
-3. **Write Prompt**: Describe how you want to edit the image
+2. **Keep Single Image Mode**: Default mode is already selected
+3. **Upload Image**: Tap to select an image from your device
+4. **Write Prompt**: Describe how you want to edit the image
    - Example: "Add a sunset background"
    - Example: "Change to watercolor style"
    - Example: "Remove the background and make it transparent"
-4. **Configure Settings**: Choose aspect ratio and resolution
-5. **Generate**: Tap the generate button to create your edited image
-6. **Iterate**: Continue editing by entering new prompts (the generated image becomes the new base)
+5. **Configure Settings**: Choose aspect ratio and resolution
+6. **Generate**: Tap the generate button to create your edited image
+7. **Iterate**: Continue editing by entering new prompts (the generated image becomes the new base)
+
+### Advanced Usage (Multiple Images)
+1. **Switch to Multiple Images Mode**: Tap "Multiple Images (up to 14)" button
+2. **Upload Images**: Select up to 14 images from your device
+   - You can select multiple files at once
+   - Add more images by tapping the upload button again
+   - Remove unwanted images by tapping the × button
+3. **Write Prompt**: Describe how to combine or use the images
+   - Example: "Create a group photo with these people in an office setting"
+   - Example: "Combine these objects into a single product photo"
+   - Example: "Use the style from the first image and apply it to the scene in the second image"
+4. **Generate**: Create your composite image
 
 ## Image Settings
 
@@ -50,6 +79,8 @@ This tool uses `google/gemini-3-pro-image-preview` via OpenRouter, which support
 - Image-to-image editing with text prompts
 - Multi-turn conversational editing
 - High-fidelity text rendering in images
+- Multiple reference images (up to 14 images)
+- Character consistency across generated images
 
 ## Getting an API Key
 
@@ -80,6 +111,13 @@ This tool uses `google/gemini-3-pro-image-preview` via OpenRouter, which support
   - "Remove the car from the street"
   - "Change the shirt color to blue"
 
+- **Multiple Images Mode**: Best practices for combining images
+  - Character Consistency: "Create a group photo with these 5 people making funny faces"
+  - Object Composition: "Combine these products into a single catalog photo on a white background"
+  - Style Transfer: "Apply the artistic style of the first image to the scene in the second image"
+  - Scene Assembly: "Create a realistic living room using furniture from these images"
+  - Reference Mixing: "Use the color palette from image 1 and the composition from image 2"
+
 ## Limitations
 
 - Requires internet connection
@@ -99,8 +137,17 @@ This tool uses `google/gemini-3-pro-image-preview` via OpenRouter, which support
 **"Please enter your OpenRouter API key"**
 - Make sure you've pasted your API key in the API Key field
 
-**"Please upload an image first"**
+**"Please upload an image first"** (Single Mode)
 - Select an image using the upload button
+
+**"Please upload at least one image"** (Multiple Mode)
+- Switch to Multiple Images mode
+- Select one or more images (up to 14)
+
+**"You can only add X more image(s). Maximum is 14 images."**
+- You've reached or are close to the 14 image limit
+- Remove some images by clicking the × button on unwanted images
+- Or proceed with the current selection
 
 **"Error: HTTP error! status: 401"**
 - Your API key is invalid or expired
