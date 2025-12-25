@@ -252,6 +252,75 @@
         .history-item strong {
             color: #667eea;
         }
+
+        .mode-switch {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 10px;
+            background: #f5f5f5;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .mode-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .multi-image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .multi-image-item {
+            position: relative;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+            aspect-ratio: 1;
+        }
+
+        .multi-image-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .multi-image-remove {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: rgba(255, 0, 0, 0.8);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .multi-image-count {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+        }
     </style>
 </head>
 <body>
@@ -271,6 +340,15 @@
                 </div>
             </div>
 
+            <!-- Mode Switch -->
+            <div class="section">
+                <div class="section-title">Upload Mode</div>
+                <div class="mode-switch">
+                    <button class="mode-btn active" id="singleModeBtn">📷 Single Image</button>
+                    <button class="mode-btn" id="multiModeBtn">🖼️ Multiple Images (up to 14)</button>
+                </div>
+            </div>
+
             <!-- Image Upload Section -->
             <div class="section">
                 <div class="section-title">Upload Image</div>
@@ -281,6 +359,10 @@
                     </div>
                 </div>
                 <div id="originalPreview"></div>
+                <div id="multiImageContainer" style="display: none;">
+                    <div class="multi-image-grid" id="multiImageGrid"></div>
+                    <div class="multi-image-count" id="imageCount">0 / 14 images</div>
+                </div>
             </div>
 
             <!-- Prompt Section -->
@@ -355,6 +437,8 @@
     <script>
         let conversationHistory = [];
         let currentImage = null;
+        let multipleImages = [];
+        let isMultiMode = false;
 
         // Load API key from localStorage
         document.addEventListener('DOMContentLoaded', () => {
@@ -369,23 +453,103 @@
             localStorage.setItem('openrouter_api_key', e.target.value);
         });
 
+        // Mode switch handlers
+        document.getElementById('singleModeBtn').addEventListener('click', () => {
+            isMultiMode = false;
+            document.getElementById('singleModeBtn').classList.add('active');
+            document.getElementById('multiModeBtn').classList.remove('active');
+            document.getElementById('imageInput').removeAttribute('multiple');
+            document.getElementById('originalPreview').style.display = 'block';
+            document.getElementById('multiImageContainer').style.display = 'none';
+            document.getElementById('fileLabel').innerHTML = '<span>📷 Tap to select image</span>';
+            multipleImages = [];
+            updateImageCount();
+        });
+
+        document.getElementById('multiModeBtn').addEventListener('click', () => {
+            isMultiMode = true;
+            document.getElementById('singleModeBtn').classList.remove('active');
+            document.getElementById('multiModeBtn').classList.add('active');
+            document.getElementById('imageInput').setAttribute('multiple', 'multiple');
+            document.getElementById('originalPreview').style.display = 'none';
+            document.getElementById('multiImageContainer').style.display = 'block';
+            document.getElementById('fileLabel').innerHTML = '<span>🖼️ Tap to select images (up to 14)</span>';
+            currentImage = null;
+        });
+
         // Handle image upload
         document.getElementById('imageInput').addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    currentImage = event.target.result;
-                    document.getElementById('fileLabel').classList.add('has-file');
-                    document.getElementById('fileLabel').innerHTML = `<span>✅ ${file.name}</span>`;
+            if (isMultiMode) {
+                const files = Array.from(e.target.files);
+                const remainingSlots = 14 - multipleImages.length;
 
-                    // Show preview
-                    document.getElementById('originalPreview').innerHTML =
-                        `<div class="image-preview"><img src="${currentImage}" alt="Original"></div>`;
-                };
-                reader.readAsDataURL(file);
+                if (files.length > remainingSlots) {
+                    showError(`You can only add ${remainingSlots} more image(s). Maximum is 14 images.`);
+                    return;
+                }
+
+                for (const file of files) {
+                    if (multipleImages.length >= 14) break;
+
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        multipleImages.push({
+                            data: event.target.result,
+                            name: file.name
+                        });
+                        renderMultiImageGrid();
+                        updateImageCount();
+                    };
+                    reader.readAsDataURL(file);
+                }
+
+                document.getElementById('fileLabel').classList.add('has-file');
+            } else {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        currentImage = event.target.result;
+                        document.getElementById('fileLabel').classList.add('has-file');
+                        document.getElementById('fileLabel').innerHTML = `<span>✅ ${file.name}</span>`;
+
+                        // Show preview
+                        document.getElementById('originalPreview').innerHTML =
+                            `<div class="image-preview"><img src="${currentImage}" alt="Original"></div>`;
+                    };
+                    reader.readAsDataURL(file);
+                }
             }
         });
+
+        function renderMultiImageGrid() {
+            const grid = document.getElementById('multiImageGrid');
+            grid.innerHTML = '';
+
+            multipleImages.forEach((img, index) => {
+                const item = document.createElement('div');
+                item.className = 'multi-image-item';
+                item.innerHTML = `
+                    <img src="${img.data}" alt="${img.name}">
+                    <button class="multi-image-remove" onclick="removeImage(${index})">×</button>
+                `;
+                grid.appendChild(item);
+            });
+        }
+
+        function removeImage(index) {
+            multipleImages.splice(index, 1);
+            renderMultiImageGrid();
+            updateImageCount();
+
+            if (multipleImages.length === 0) {
+                document.getElementById('fileLabel').classList.remove('has-file');
+            }
+        }
+
+        function updateImageCount() {
+            document.getElementById('imageCount').textContent = `${multipleImages.length} / 14 images`;
+        }
 
         // Generate image
         document.getElementById('generateBtn').addEventListener('click', async () => {
@@ -404,9 +568,16 @@
                 return;
             }
 
-            if (!currentImage) {
-                showError('Please upload an image first');
-                return;
+            if (isMultiMode) {
+                if (multipleImages.length === 0) {
+                    showError('Please upload at least one image');
+                    return;
+                }
+            } else {
+                if (!currentImage) {
+                    showError('Please upload an image first');
+                    return;
+                }
             }
 
             showLoading();
@@ -416,21 +587,39 @@
                 // Build messages
                 const messages = [...conversationHistory];
 
-                // Add user message with image
-                const userMessage = {
-                    role: 'user',
-                    content: [
-                        {
-                            type: 'text',
-                            text: prompt
-                        },
-                        {
+                // Build content array
+                const content = [
+                    {
+                        type: 'text',
+                        text: prompt
+                    }
+                ];
+
+                // Add images based on mode
+                if (isMultiMode) {
+                    // Add multiple images
+                    multipleImages.forEach(img => {
+                        content.push({
                             type: 'image_url',
                             image_url: {
-                                url: currentImage
+                                url: img.data
                             }
+                        });
+                    });
+                } else {
+                    // Add single image
+                    content.push({
+                        type: 'image_url',
+                        image_url: {
+                            url: currentImage
                         }
-                    ]
+                    });
+                }
+
+                // Add user message with images
+                const userMessage = {
+                    role: 'user',
+                    content: content
                 };
                 messages.push(userMessage);
 
@@ -474,13 +663,27 @@
 
                         // Show result section
                         document.getElementById('resultSection').style.display = 'block';
-                        document.getElementById('originalImagePreview').innerHTML =
-                            `<div class="image-preview"><img src="${currentImage}" alt="Original"></div>`;
+
+                        // Display original images
+                        if (isMultiMode) {
+                            let multiImageHTML = '<div class="multi-image-grid">';
+                            multipleImages.forEach(img => {
+                                multiImageHTML += `<div class="multi-image-item"><img src="${img.data}" alt="Original"></div>`;
+                            });
+                            multiImageHTML += '</div>';
+                            document.getElementById('originalImagePreview').innerHTML = multiImageHTML;
+                        } else {
+                            document.getElementById('originalImagePreview').innerHTML =
+                                `<div class="image-preview"><img src="${currentImage}" alt="Original"></div>`;
+                        }
+
                         document.getElementById('generatedImagePreview').innerHTML =
                             `<div class="image-preview"><img src="${generatedImageUrl}" alt="Generated"></div>`;
 
-                        // Update current image for next edit
-                        currentImage = generatedImageUrl;
+                        // Update current image for next edit (single mode only)
+                        if (!isMultiMode) {
+                            currentImage = generatedImageUrl;
+                        }
 
                         showSuccess('Image generated successfully!');
                         updateHistory(prompt, message.content || 'Image generated');
@@ -500,8 +703,11 @@
         // Clear conversation history
         document.getElementById('clearHistoryBtn').addEventListener('click', () => {
             conversationHistory = [];
+            multipleImages = [];
             document.getElementById('historyContainer').innerHTML = '';
             document.getElementById('historySection').style.display = 'none';
+            renderMultiImageGrid();
+            updateImageCount();
             showSuccess('Conversation history cleared');
         });
 
