@@ -5,6 +5,7 @@ A collection of single-file HTML tools for various purposes.
 ## Tools Index
 
 - `gemini-image-editor.html` - Edit and transform images using Gemini 3 Pro via OpenRouter API
+- `hiroo-shinagawa-bus.html` - Tokyo bus timetable with real-time countdown for Hiroo Bridge to Shinagawa Station route
 - `hn-best-comments.html` - View and sort Hacker News best comments with auto-refresh
 - `hn-thread-comments.html` - View top 5 comments from specific Hacker News threads
 - `html-viewer.html` - View HTML source code of any webpage with syntax highlighting and comment extraction
