@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>都バス時刻表 - 広尾橋→品川駅</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Meirio, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+
+        .route {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .current-time {
+            text-align: center;
+            font-size: 18px;
+            color: #555;
+            margin-bottom: 30px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 10px;
+        }
+
+        .bus-info {
+            margin-bottom: 20px;
+            padding: 25px;
+            border-radius: 15px;
+            transition: transform 0.2s;
+        }
+
+        .bus-info:hover {
+            transform: translateY(-2px);
+        }
+
+        .bus-info.next {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .bus-info.upcoming {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .bus-label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .bus-time {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .countdown {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .no-bus {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-size: 18px;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #999;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚌 都バス時刻表</h1>
+        <div class="route">広尾橋 → 品川駅（平日）</div>
+
+        <div class="current-time" id="currentTime"></div>
+
+        <div id="busSchedule"></div>
+
+        <div class="footer">※平日ダイヤです</div>
+    </div>
+
+    <script>
+        // 時刻表データ
+        const timetable = [
+            {hour: 6, minutes: [53]},
+            {hour: 7, minutes: [6, 18, 31, 44, 57]},
+            {hour: 8, minutes: [9, 24, 35, 45]},
+            {hour: 9, minutes: [4, 23, 44]},
+            {hour: 10, minutes: [3, 23, 43]},
+            {hour: 11, minutes: [1, 19, 39]},
+            {hour: 12, minutes: [0, 23, 48]},
+            {hour: 13, minutes: [14, 35, 53]},
+            {hour: 14, minutes: [11, 28, 45]},
+            {hour: 15, minutes: [2, 19, 36, 53]},
+            {hour: 16, minutes: [11, 30, 49]},
+            {hour: 17, minutes: [8, 30, 55]},
+            {hour: 18, minutes: [19, 43]},
+            {hour: 19, minutes: [9, 37]},
+            {hour: 20, minutes: [4, 32]},
+            {hour: 21, minutes: [3, 33]},
+            {hour: 22, minutes: [2]}
+        ];
+
+        // 全てのバス時刻を分単位に変換した配列を作成
+        function getAllBusTimes() {
+            const times = [];
+            timetable.forEach(slot => {
+                slot.minutes.forEach(minute => {
+                    times.push({
+                        hour: slot.hour,
+                        minute: minute,
+                        totalMinutes: slot.hour * 60 + minute
+                    });
+                });
+            });
+            return times;
+        }
+
+        // 次の3本のバスを取得
+        function getNextBuses(now) {
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+            const allBuses = getAllBusTimes();
+
+            const upcomingBuses = allBuses.filter(bus => bus.totalMinutes > currentMinutes);
+
+            return upcomingBuses.slice(0, 3);
+        }
+
+        // 時刻を2桁表示に
+        function pad(num) {
+            return String(num).padStart(2, '0');
+        }
+
+        // カウントダウンを計算
+        function getCountdown(busTime, now) {
+            const busDate = new Date(now);
+            busDate.setHours(busTime.hour, busTime.minute, 0, 0);
+
+            const diff = Math.floor((busDate - now) / 1000); // 秒単位
+            const minutes = Math.floor(diff / 60);
+            const seconds = diff % 60;
+
+            return {minutes, seconds, total: diff};
+        }
+
+        // 表示を更新
+        function updateDisplay() {
+            const now = new Date();
+
+            // 現在時刻の表示
+            document.getElementById('currentTime').textContent =
+                `現在時刻: ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+            // 次のバスを取得
+            const nextBuses = getNextBuses(now);
+            const scheduleDiv = document.getElementById('busSchedule');
+
+            if (nextBuses.length === 0) {
+                scheduleDiv.innerHTML = '<div class="no-bus">本日の運行は終了しました</div>';
+                return;
+            }
+
+            let html = '';
+            nextBuses.forEach((bus, index) => {
+                const countdown = getCountdown(bus, now);
+                const cssClass = index === 0 ? 'next' : 'upcoming';
+                const label = index === 0 ? '次のバス' : `${index + 1}本後`;
+
+                html += `
+                    <div class="bus-info ${cssClass}">
+                        <div class="bus-label">${label}</div>
+                        <div class="bus-time">${pad(bus.hour)}:${pad(bus.minute)}</div>
+                        <div class="countdown">
+                            あと ${countdown.minutes}分${pad(countdown.seconds)}秒
+                        </div>
+                    </div>
+                `;
+            });
+
+            scheduleDiv.innerHTML = html;
+        }
+
+        // 1秒ごとに更新
+        updateDisplay();
+        setInterval(updateDisplay, 1000);
+    </script>
+</body>
+</html>
