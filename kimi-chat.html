@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kimi K2.5 Chat</title>
+    <title>OpenRouter Multi-Model Chat</title>
     <style>
         * {
             margin: 0;
@@ -67,12 +67,27 @@
         }
 
         .setting-item input,
-        .setting-item textarea {
+        .setting-item textarea,
+        .setting-item select {
             width: 100%;
             padding: 0.5rem;
             border: 1px solid #d1d5db;
             border-radius: 0.375rem;
             font-size: 0.875rem;
+        }
+
+        .model-select-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .custom-model-wrapper {
+            display: none;
+        }
+
+        .custom-model-wrapper.show {
+            display: block;
         }
 
         .setting-item textarea {
@@ -213,7 +228,7 @@
 </head>
 <body>
     <header>
-        <h1>Kimi K2.5 Chat</h1>
+        <h1>OpenRouter Chat</h1>
         <button class="settings-btn" id="settings-toggle">⚙️</button>
     </header>
 
@@ -223,8 +238,21 @@
             <input type="password" id="api-key" placeholder="sk-or-v1-...">
         </div>
         <div class="setting-item">
-            <label for="model-name">モデル名:</label>
-            <input type="text" id="model-name" value="moonshotai/kimi-k2.5">
+            <label for="model-select">モデル選択:</label>
+            <div class="model-select-group">
+                <select id="model-select">
+                    <option value="moonshotai/kimi-k2.5">Kimi K2.5 (moonshotai)</option>
+                    <option value="z-ai/glm-4.7-flash">GLM-4.7 Flash (Z-AI)</option>
+                    <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash (Google)</option>
+                    <option value="openai/gpt-4o">GPT-4o (OpenAI)</option>
+                    <option value="anthropic/claude-sonnet-4">Claude Sonnet 4 (Anthropic)</option>
+                    <option value="deepseek/deepseek-chat-v3-0324">DeepSeek Chat V3 (DeepSeek)</option>
+                    <option value="custom">カスタムモデル...</option>
+                </select>
+                <div class="custom-model-wrapper" id="custom-model-wrapper">
+                    <input type="text" id="custom-model" placeholder="例: meta-llama/llama-3.1-70b-instruct">
+                </div>
+            </div>
         </div>
         <div class="setting-item">
             <label for="system-prompt">システムプロンプト:</label>
@@ -248,7 +276,9 @@
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
         const apiKeyInput = document.getElementById('api-key');
-        const modelNameInput = document.getElementById('model-name');
+        const modelSelect = document.getElementById('model-select');
+        const customModelWrapper = document.getElementById('custom-model-wrapper');
+        const customModelInput = document.getElementById('custom-model');
         const systemPromptInput = document.getElementById('system-prompt');
         const settingsPanel = document.getElementById('settings-panel');
         const settingsToggle = document.getElementById('settings-toggle');
@@ -256,10 +286,29 @@
 
         let conversationHistory = [];
 
+        // Get current model name
+        function getCurrentModel() {
+            if (modelSelect.value === 'custom') {
+                return customModelInput.value.trim() || 'moonshotai/kimi-k2.5';
+            }
+            return modelSelect.value;
+        }
+
         // Load saved settings
         function loadSettings() {
             apiKeyInput.value = localStorage.getItem('kimi_apiKey') || '';
-            modelNameInput.value = localStorage.getItem('kimi_modelName') || 'moonshotai/kimi-k2.5';
+            const savedModel = localStorage.getItem('kimi_modelName') || 'moonshotai/kimi-k2.5';
+
+            // Check if saved model is in the preset list
+            const presetOption = Array.from(modelSelect.options).find(opt => opt.value === savedModel);
+            if (presetOption) {
+                modelSelect.value = savedModel;
+            } else {
+                modelSelect.value = 'custom';
+                customModelInput.value = savedModel;
+                customModelWrapper.classList.add('show');
+            }
+
             systemPromptInput.value = localStorage.getItem('kimi_systemPrompt') || 'あなたは親切で役に立つアシスタントです。';
 
             const savedHistory = localStorage.getItem('kimi_chatHistory');
@@ -272,7 +321,7 @@
         // Save settings
         function saveSettings() {
             localStorage.setItem('kimi_apiKey', apiKeyInput.value);
-            localStorage.setItem('kimi_modelName', modelNameInput.value);
+            localStorage.setItem('kimi_modelName', getCurrentModel());
             localStorage.setItem('kimi_systemPrompt', systemPromptInput.value);
         }
 
@@ -301,7 +350,15 @@
 
         // Save settings on change
         apiKeyInput.addEventListener('change', saveSettings);
-        modelNameInput.addEventListener('change', saveSettings);
+        modelSelect.addEventListener('change', () => {
+            if (modelSelect.value === 'custom') {
+                customModelWrapper.classList.add('show');
+            } else {
+                customModelWrapper.classList.remove('show');
+            }
+            saveSettings();
+        });
+        customModelInput.addEventListener('change', saveSettings);
         systemPromptInput.addEventListener('change', saveSettings);
 
         // Clear history
@@ -333,7 +390,11 @@
             if (tokens && role === 'assistant') {
                 const tokenInfo = document.createElement('div');
                 tokenInfo.className = 'token-info';
-                tokenInfo.textContent = `トークン: ${tokens.prompt || 0} + ${tokens.completion || 0} = ${tokens.total || 0}`;
+                let tokenText = `トークン: ${tokens.prompt || 0} + ${tokens.completion || 0} = ${tokens.total || 0}`;
+                if (tokens.reasoning) {
+                    tokenText += ` (推論: ${tokens.reasoning})`;
+                }
+                tokenInfo.textContent = tokenText;
                 contentDiv.appendChild(tokenInfo);
             }
 
@@ -385,12 +446,15 @@
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${apiKey}`,
                         'HTTP-Referer': window.location.href,
-                        'X-Title': 'Kimi K2.5 Chat'
+                        'X-Title': 'OpenRouter Multi-Model Chat'
                     },
                     body: JSON.stringify({
-                        model: modelNameInput.value.trim(),
+                        model: getCurrentModel(),
                         messages: messages,
-                        stream: true
+                        stream: true,
+                        stream_options: {
+                            include_usage: true
+                        }
                     })
                 });
 
@@ -443,9 +507,14 @@
                                     const tokens = {
                                         prompt: json.usage.prompt_tokens,
                                         completion: json.usage.completion_tokens,
-                                        total: json.usage.total_tokens
+                                        total: json.usage.total_tokens,
+                                        reasoning: json.usage.reasoning_tokens || json.usage.reasoningTokens || 0
                                     };
-                                    tokenInfo.textContent = `トークン: ${tokens.prompt || 0} + ${tokens.completion || 0} = ${tokens.total || 0}`;
+                                    let tokenText = `トークン: ${tokens.prompt || 0} + ${tokens.completion || 0} = ${tokens.total || 0}`;
+                                    if (tokens.reasoning) {
+                                        tokenText += ` (推論: ${tokens.reasoning})`;
+                                    }
+                                    tokenInfo.textContent = tokenText;
                                     contentDiv.appendChild(tokenInfo);
 
                                     conversationHistory.push({
