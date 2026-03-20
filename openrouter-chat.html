@@ -418,14 +418,13 @@
           headers: {
             'Authorization': `Bearer ${state.apiKey}`,
             'Content-Type': 'application/json',
-            'HTTP-Referer': 'https://sssshun664.github.io/tools/openrouter-chat.html',
-            'X-OpenRouter-Title': 'OpenRouter Chat',
           },
           body: JSON.stringify({
             model: state.selectedModel,
             messages: apiMessages,
             stream: true,
             stream_options: { include_usage: true },
+            provider: { zdr: true },
           }),
         });
 
