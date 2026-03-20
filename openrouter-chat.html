@@ -64,12 +64,62 @@
     .chat-item.active { background: #1f2937; color: #f9fafb; }
     .chat-item:not(.active):hover { background: #111827; }
     textarea { font-family: inherit; }
+
+    /* Sidebar toggle */
+    #sidebar { transition: width 0.2s ease, opacity 0.2s ease; }
+    #sidebar.collapsed { width: 0; opacity: 0; overflow: hidden; border-right: none; padding: 0; }
+
+    /* Scroll-down button */
+    #scrollDownBtn {
+      position: absolute; bottom: 16px; right: 16px;
+      width: 36px; height: 36px; border-radius: 50%;
+      background: #1f2937; border: 1px solid #374151;
+      color: #9ca3af; cursor: pointer;
+      display: none; align-items: center; justify-content: center;
+      transition: opacity 0.2s, background 0.15s;
+      z-index: 10;
+    }
+    #scrollDownBtn:hover { background: #374151; color: #e5e7eb; }
+
+    /* Enter hint */
+    #enterHint {
+      position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+      background: #1f2937; border: 1px solid #374151; border-radius: 8px;
+      padding: 4px 12px; font-size: 12px; color: #9ca3af;
+      white-space: nowrap; pointer-events: none;
+      animation: fadeInUp 0.15s ease;
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    /* Copy button */
+    .copy-btn {
+      opacity: 0; transition: opacity 0.15s;
+      cursor: pointer; padding: 4px; border-radius: 6px;
+      color: #6b7280; background: transparent; border: none;
+    }
+    .copy-btn:hover { color: #d1d5db; background: #374151; }
+    .msg-wrap:hover .copy-btn { opacity: 1; }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+      #sidebar { position: fixed; z-index: 40; height: 100%; }
+      #sidebar.collapsed { width: 0; }
+      #sidebar:not(.collapsed) { width: 260px; }
+      #sidebarOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 39; }
+      #sidebarOverlay.active { display: block; }
+    }
   </style>
 </head>
 <body class="bg-gray-950 text-gray-100 h-screen flex overflow-hidden font-sans">
 
+  <!-- Sidebar Overlay (mobile) -->
+  <div id="sidebarOverlay"></div>
+
   <!-- Sidebar -->
-  <aside class="w-60 flex-shrink-0 bg-gray-900 flex flex-col border-r border-gray-800">
+  <aside id="sidebar" class="w-60 flex-shrink-0 bg-gray-900 flex flex-col border-r border-gray-800">
     <div class="p-3">
       <button id="newChatBtn"
         class="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-gray-800 hover:bg-gray-700 active:bg-gray-600 transition-colors text-sm font-medium text-gray-200">
@@ -99,6 +149,11 @@
   <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
     <header class="flex items-center justify-between px-5 py-3 border-b border-gray-800 bg-gray-900 flex-shrink-0">
       <div class="flex items-center gap-3 min-w-0">
+        <button id="sidebarToggle" class="p-1.5 rounded-lg hover:bg-gray-800 transition-colors text-gray-400 hover:text-gray-200 flex-shrink-0" title="サイドバー切替">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
         <h1 class="font-semibold text-gray-100 text-sm whitespace-nowrap">OpenRouter Chat</h1>
         <span id="modelBadge"
           class="text-xs text-gray-400 bg-gray-800 px-2.5 py-1 rounded-full truncate max-w-xs border border-gray-700"></span>
@@ -106,13 +161,21 @@
       <div id="streamStatus" class="text-xs text-gray-500 flex-shrink-0"></div>
     </header>
 
-    <div id="messagesArea" class="flex-1 overflow-y-auto px-4 py-5 space-y-5"></div>
+    <div class="flex-1 relative overflow-hidden">
+      <div id="messagesArea" class="h-full overflow-y-auto px-4 py-5 space-y-5"></div>
+      <button id="scrollDownBtn" aria-label="一番下へスクロール">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+        </svg>
+      </button>
+    </div>
 
     <div class="px-4 pb-4 pt-3 border-t border-gray-800 bg-gray-900 flex-shrink-0">
-      <div class="max-w-3xl mx-auto flex gap-2 items-end">
+      <div class="max-w-3xl mx-auto flex gap-2 items-end relative">
+        <div id="enterHint" style="display:none;">もう一度 Enter で送信</div>
         <div class="flex-1">
           <textarea id="messageInput"
-            placeholder="メッセージを入力… (Enter で送信、Shift+Enter で改行)"
+            placeholder="メッセージを入力… (Enter×2 で送信)"
             class="w-full bg-gray-800 rounded-xl px-4 py-3 text-sm resize-none outline-none border border-gray-700 focus:border-blue-500/50 transition-colors min-h-[52px] max-h-48 leading-relaxed"
             rows="1"></textarea>
         </div>
@@ -321,7 +384,10 @@
 
     function buildMsgEl(msg) {
       const wrap = document.createElement('div');
-      wrap.className = 'flex ' + (msg.role === 'user' ? 'justify-end' : 'justify-start');
+      wrap.className = 'msg-wrap flex ' + (msg.role === 'user' ? 'justify-end' : 'justify-start');
+
+      const container = document.createElement('div');
+      container.className = 'flex flex-col ' + (msg.role === 'user' ? 'items-end' : 'items-start');
 
       const bubble = document.createElement('div');
 
@@ -348,7 +414,31 @@
         }
       }
 
-      wrap.appendChild(bubble);
+      container.appendChild(bubble);
+
+      // Copy button
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'copy-btn mt-1';
+      copyBtn.title = 'コピー';
+      copyBtn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+      </svg>`;
+      copyBtn.addEventListener('click', () => {
+        const text = msg.role === 'user' ? msg.content : (msg.content || '');
+        navigator.clipboard.writeText(text).then(() => {
+          copyBtn.innerHTML = `<svg class="w-3.5 h-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>`;
+          setTimeout(() => {
+            copyBtn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>`;
+          }, 1500);
+        });
+      });
+      container.appendChild(copyBtn);
+
+      wrap.appendChild(container);
       return wrap;
     }
 
@@ -484,7 +574,7 @@
             <span>入力: <span class="text-gray-400">${u.prompt_tokens}</span></span>
             <span>出力: <span class="text-gray-400">${u.completion_tokens}</span></span>
             <span>合計: <span class="text-gray-400">${u.total_tokens}</span></span>`;
-          msgEl.querySelector('div').appendChild(uEl);
+          msgEl.querySelector('.markdown-content').parentElement.appendChild(uEl);
         }
 
       } catch (err) {
@@ -606,9 +696,31 @@
       this.textContent = inp.type === 'password' ? '表示' : '隠す';
     });
     document.getElementById('sendBtn').addEventListener('click', sendMessage);
+
+    // ── Enter×2 to send ──
+    let enterPending = false;
+    let enterTimer = null;
     document.getElementById('messageInput').addEventListener('keydown', e => {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        const input = document.getElementById('messageInput');
+        if (!input.value.trim()) return;
+        if (enterPending) {
+          clearTimeout(enterTimer);
+          enterPending = false;
+          document.getElementById('enterHint').style.display = 'none';
+          sendMessage();
+        } else {
+          enterPending = true;
+          document.getElementById('enterHint').style.display = 'block';
+          enterTimer = setTimeout(() => {
+            enterPending = false;
+            document.getElementById('enterHint').style.display = 'none';
+          }, 1500);
+        }
+      }
     });
+
     document.getElementById('messageInput').addEventListener('input', function () {
       this.style.height = 'auto';
       this.style.height = Math.min(this.scrollHeight, 192) + 'px';
@@ -616,6 +728,32 @@
     document.getElementById('settingsModal').addEventListener('click', e => {
       if (e.target === document.getElementById('settingsModal')) closeSettings();
     });
+
+    // ── Sidebar toggle ──
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      sidebar.classList.toggle('collapsed');
+      overlay.classList.toggle('active', !sidebar.classList.contains('collapsed') && window.innerWidth <= 768);
+    }
+    document.getElementById('sidebarToggle').addEventListener('click', toggleSidebar);
+    document.getElementById('sidebarOverlay').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.add('collapsed');
+      document.getElementById('sidebarOverlay').classList.remove('active');
+    });
+    // Auto-collapse sidebar on mobile
+    if (window.innerWidth <= 768) {
+      document.getElementById('sidebar').classList.add('collapsed');
+    }
+
+    // ── Scroll-down button ──
+    const messagesArea = document.getElementById('messagesArea');
+    const scrollDownBtn = document.getElementById('scrollDownBtn');
+    messagesArea.addEventListener('scroll', () => {
+      const distFromBottom = messagesArea.scrollHeight - messagesArea.scrollTop - messagesArea.clientHeight;
+      scrollDownBtn.style.display = distFromBottom > 150 ? 'flex' : 'none';
+    });
+    scrollDownBtn.addEventListener('click', scrollBottom);
 
     // ── Init ──
     loadState();
