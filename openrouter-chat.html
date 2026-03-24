@@ -103,6 +103,18 @@
     .copy-btn:hover { color: #d1d5db; background: #374151; }
     .msg-wrap:hover .copy-btn { opacity: 1; }
 
+    /* Image preview strip */
+    #imagePreviewStrip { display: none; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+    #imagePreviewStrip.visible { display: flex; }
+
+    /* Attach panel */
+    #attachPanel {
+      position: absolute; bottom: calc(100% + 8px); left: 0;
+      background: #111827; border: 1px solid #374151;
+      border-radius: 16px; padding: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      width: 300px; z-index: 20;
+    }
+
     /* Mobile */
     @media (max-width: 768px) {
       #sidebar { position: fixed; z-index: 40; height: 100%; }
@@ -171,21 +183,57 @@
     </div>
 
     <div class="px-4 pb-4 pt-3 border-t border-gray-800 bg-gray-900 flex-shrink-0">
-      <div class="max-w-3xl mx-auto flex gap-2 items-end relative">
-        <div id="enterHint" style="display:none;">もう一度 Enter で送信</div>
-        <div class="flex-1">
-          <textarea id="messageInput"
-            placeholder="メッセージを入力… (Enter×2 で送信)"
-            class="w-full bg-gray-800 rounded-xl px-4 py-3 text-sm resize-none outline-none border border-gray-700 focus:border-blue-500/50 transition-colors min-h-[52px] max-h-48 leading-relaxed"
-            rows="1"></textarea>
+      <div class="max-w-3xl mx-auto relative">
+        <!-- Image preview strip -->
+        <div id="imagePreviewStrip"></div>
+        <!-- Input row -->
+        <div class="flex gap-2 items-end relative">
+          <div id="enterHint" style="display:none;">もう一度 Enter で送信</div>
+          <!-- Attach button -->
+          <button id="attachBtn" title="画像を添付"
+            class="flex-shrink-0 p-3 rounded-xl bg-gray-800 hover:bg-gray-700 active:bg-gray-600 border border-gray-700 transition-colors text-gray-400 hover:text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+            </svg>
+          </button>
+          <div class="flex-1">
+            <textarea id="messageInput"
+              placeholder="メッセージを入力… (Enter×2 で送信)"
+              class="w-full bg-gray-800 rounded-xl px-4 py-3 text-sm resize-none outline-none border border-gray-700 focus:border-blue-500/50 transition-colors min-h-[52px] max-h-48 leading-relaxed"
+              rows="1"></textarea>
+          </div>
+          <button id="sendBtn"
+            class="flex-shrink-0 p-3 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+            </svg>
+          </button>
         </div>
-        <button id="sendBtn"
-          class="flex-shrink-0 p-3 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-          </svg>
-        </button>
+        <!-- Attach panel -->
+        <div id="attachPanel" class="hidden">
+          <p class="text-xs font-medium text-gray-400 mb-3">画像を添付</p>
+          <!-- File upload -->
+          <input type="file" id="fileInput" accept="image/*" multiple class="hidden">
+          <button id="fileSelectBtn"
+            class="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-sm text-gray-300 mb-3">
+            <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+            ファイルを選択（複数可）
+          </button>
+          <!-- URL input -->
+          <div class="flex gap-2">
+            <input id="imageUrlInput" type="text" placeholder="https://example.com/image.jpg"
+              class="flex-1 bg-gray-800 rounded-lg px-3 py-2 text-sm outline-none border border-gray-700 focus:border-blue-500/50 transition-colors text-gray-300 placeholder-gray-600 min-w-0"/>
+            <button id="addUrlBtn"
+              class="flex-shrink-0 px-3 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors text-sm text-gray-300">
+              追加
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </main>
@@ -272,6 +320,43 @@
     };
 
     let isStreaming = false;
+    let pendingImages = []; // { url: string, name?: string }
+
+    function addPendingImage(url, name) {
+      pendingImages.push({ url, name });
+      renderImagePreviews();
+    }
+
+    function removeImage(index) {
+      pendingImages.splice(index, 1);
+      renderImagePreviews();
+    }
+
+    function renderImagePreviews() {
+      const strip = document.getElementById('imagePreviewStrip');
+      if (pendingImages.length === 0) {
+        strip.classList.remove('visible');
+        strip.innerHTML = '';
+        return;
+      }
+      strip.classList.add('visible');
+      strip.innerHTML = '';
+      pendingImages.forEach((img, i) => {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'position:relative;flex-shrink:0;';
+        const thumb = document.createElement('img');
+        thumb.src = img.url;
+        thumb.style.cssText = 'width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #374151;display:block;';
+        thumb.alt = img.name || 'image';
+        const rmBtn = document.createElement('button');
+        rmBtn.style.cssText = 'position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#374151;border:1px solid #4b5563;color:#d1d5db;display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1;cursor:pointer;';
+        rmBtn.textContent = '×';
+        rmBtn.onclick = () => removeImage(i);
+        wrap.appendChild(thumb);
+        wrap.appendChild(rmBtn);
+        strip.appendChild(wrap);
+      });
+    }
 
     // ── Persistence ──
     function loadState() {
@@ -295,6 +380,8 @@
     }
 
     function createNewChat() {
+      pendingImages = [];
+      renderImagePreviews();
       const chat = { id: genId(), title: '新しいチャット', messages: [], createdAt: Date.now() };
       state.chats.unshift(chat);
       state.currentChatId = chat.id;
@@ -305,6 +392,8 @@
     }
 
     function switchChat(id) {
+      pendingImages = [];
+      renderImagePreviews();
       state.currentChatId = id;
       saveState();
       renderSidebar();
@@ -324,7 +413,9 @@
 
     function autoTitle(chat) {
       if (chat.messages.length === 1 && chat.messages[0].role === 'user') {
-        const t = chat.messages[0].content.trim();
+        const c = chat.messages[0].content;
+        const raw = typeof c === 'string' ? c : (c.find(p => p.type === 'text')?.text || '画像');
+        const t = raw.trim() || '画像';
         chat.title = t.slice(0, 32) + (t.length > 32 ? '…' : '');
       }
     }
@@ -392,8 +483,32 @@
       const bubble = document.createElement('div');
 
       if (msg.role === 'user') {
-        bubble.className = 'max-w-[78%] bg-blue-600 rounded-2xl rounded-tr-sm px-4 py-3 text-sm whitespace-pre-wrap leading-relaxed break-words';
-        bubble.textContent = msg.content;
+        bubble.className = 'max-w-[78%] bg-blue-600 rounded-2xl rounded-tr-sm px-4 py-3 text-sm leading-relaxed';
+        if (typeof msg.content === 'string') {
+          bubble.classList.add('whitespace-pre-wrap', 'break-words');
+          bubble.textContent = msg.content;
+        } else {
+          const textPart = msg.content.find(p => p.type === 'text');
+          if (textPart?.text) {
+            const t = document.createElement('div');
+            t.className = 'whitespace-pre-wrap break-words';
+            t.textContent = textPart.text;
+            bubble.appendChild(t);
+          }
+          const imgParts = msg.content.filter(p => p.type === 'image_url');
+          if (imgParts.length > 0) {
+            const imgStrip = document.createElement('div');
+            imgStrip.className = 'flex flex-wrap gap-2' + (textPart?.text ? ' mt-2' : '');
+            imgParts.forEach(p => {
+              const img = document.createElement('img');
+              img.src = p.image_url.url;
+              img.style.cssText = 'max-width:200px;max-height:200px;border-radius:8px;object-fit:contain;border:1px solid rgba(147,197,253,0.3);display:block;';
+              img.alt = 'image';
+              imgStrip.appendChild(img);
+            });
+            bubble.appendChild(imgStrip);
+          }
+        }
       } else {
         bubble.className = 'max-w-[85%] bg-gray-800 border border-gray-700/50 rounded-2xl rounded-tl-sm px-4 py-3 text-sm';
 
@@ -424,7 +539,8 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
       </svg>`;
       copyBtn.addEventListener('click', () => {
-        const text = msg.role === 'user' ? msg.content : (msg.content || '');
+        const rawContent = msg.role === 'user' ? msg.content : (msg.content || '');
+        const text = typeof rawContent === 'string' ? rawContent : (rawContent.find(p => p.type === 'text')?.text || '');
         navigator.clipboard.writeText(text).then(() => {
           copyBtn.innerHTML = `<svg class="w-3.5 h-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
@@ -464,7 +580,7 @@
       if (isStreaming) return;
       const input = document.getElementById('messageInput');
       const content = input.value.trim();
-      if (!content) return;
+      if (!content && pendingImages.length === 0) return;
 
       if (!state.apiKey) { openSettings(); return; }
       if (!state.currentChatId) createNewChat();
@@ -472,10 +588,16 @@
       const chat = getCurrentChat();
       if (!chat) return;
 
-      chat.messages.push({ role: 'user', content });
+      const parts = [];
+      if (content) parts.push({ type: 'text', text: content });
+      pendingImages.forEach(img => parts.push({ type: 'image_url', image_url: { url: img.url } }));
+      const userContent = pendingImages.length > 0 ? parts : content;
+      chat.messages.push({ role: 'user', content: userContent });
       autoTitle(chat);
       input.value = '';
       input.style.height = 'auto';
+      pendingImages = [];
+      renderImagePreviews();
       saveState();
       renderSidebar();
 
@@ -600,6 +722,7 @@
     function setSendState(on) {
       document.getElementById('sendBtn').disabled = on;
       document.getElementById('messageInput').disabled = on;
+      document.getElementById('attachBtn').disabled = on;
     }
 
     // ── Models ──
@@ -754,6 +877,45 @@
       scrollDownBtn.style.display = distFromBottom > 150 ? 'flex' : 'none';
     });
     scrollDownBtn.addEventListener('click', scrollBottom);
+
+    // ── Attach panel ──
+    document.getElementById('attachBtn').addEventListener('click', e => {
+      e.stopPropagation();
+      document.getElementById('attachPanel').classList.toggle('hidden');
+    });
+    document.addEventListener('click', e => {
+      const panel = document.getElementById('attachPanel');
+      const btn = document.getElementById('attachBtn');
+      if (!panel.classList.contains('hidden') && !panel.contains(e.target) && e.target !== btn) {
+        panel.classList.add('hidden');
+      }
+    });
+    document.getElementById('fileSelectBtn').addEventListener('click', () => {
+      document.getElementById('fileInput').click();
+    });
+    document.getElementById('fileInput').addEventListener('change', e => {
+      Array.from(e.target.files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = ev => addPendingImage(ev.target.result, file.name);
+        reader.readAsDataURL(file);
+      });
+      e.target.value = '';
+      document.getElementById('attachPanel').classList.add('hidden');
+    });
+    document.getElementById('addUrlBtn').addEventListener('click', () => {
+      const url = document.getElementById('imageUrlInput').value.trim();
+      if (url) {
+        addPendingImage(url);
+        document.getElementById('imageUrlInput').value = '';
+        document.getElementById('attachPanel').classList.add('hidden');
+      }
+    });
+    document.getElementById('imageUrlInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('addUrlBtn').click();
+      }
+    });
 
     // ── Init ──
     loadState();
