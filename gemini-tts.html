@@ -468,9 +468,9 @@
                     };
                 }
 
-                const res = await fetch(API_URL, {
+                const res = await fetch(`${API_URL}?key=${encodeURIComponent(apiKey)}`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{ parts: [{ text }] }],
                         generationConfig: { responseModalities: ['AUDIO'], speechConfig },
@@ -484,7 +484,13 @@
 
                 const data = await res.json();
                 const b64 = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-                if (!b64) throw new Error('レスポンスに音声データがありません。');
+                if (!b64) {
+                    console.error('Unexpected API response:', JSON.stringify(data, null, 2));
+                    const txt = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                    throw new Error(txt
+                        ? 'モデルがテキストを返しました（音声ではなく）。再度お試しください。'
+                        : 'レスポンスに音声データがありません。コンソールを確認してください。');
+                }
 
                 const raw = atob(b64);
                 const pcm = new Uint8Array(raw.length);
