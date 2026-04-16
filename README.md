@@ -5,6 +5,7 @@ A collection of single-file HTML tools for various purposes.
 ## Tools Index
 
 - `gemini-image-editor.html` - Edit and transform images using Gemini 3 Pro via OpenRouter API
+- `gemini-tts.html` - Text-to-speech with single and multi-speaker support using Gemini 3.1 Flash TTS Preview
 - `hiroo-shinagawa-bus.html` - Tokyo bus timetable with real-time countdown for Hiroo Bridge to Shinagawa Station route
 - `hn-best-comments.html` - View and sort Hacker News best comments with auto-refresh
 - `hn-thread-comments.html` - View top 5 comments from specific Hacker News threads
