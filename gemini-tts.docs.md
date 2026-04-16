@@ -7,10 +7,12 @@ Convert text to speech using Google's Gemini 3.1 Flash TTS Preview model via the
 - **Single Speaker TTS**: Convert text to speech with one selected voice
 - **Multi Speaker TTS**: Generate conversations with up to 2 distinct speakers
 - **30 Voice Options**: Choose from a variety of voice styles (Bright, Upbeat, Firm, Breathy, etc.)
+- **Sample Prompts**: 10 built-in Japanese demo presets for quick testing (news, radio DJ, storytelling, podcast, etc.)
 - **Controllable Speech**: Use natural language to guide style, accent, pace, and tone
 - **Audio Tags**: Inline tags like `[whispers]`, `[laughs]`, `[excited]` for expressive control
+- **Contextual Tips**: Mode-aware tips that update based on single/multi speaker selection
 - **WAV Download**: Download generated audio as a WAV file
-- **In-Browser Playback**: Listen to results immediately in the browser
+- **In-Browser Playback**: Listen to results immediately in the browser with auto-play
 - **Mobile Optimized**: Responsive design for all devices
 
 ## Usage
@@ -27,6 +29,31 @@ Convert text to speech using Google's Gemini 3.1 Flash TTS Preview model via the
 2. **Configure Speakers**: Set names and voices for up to 2 speakers
 3. **Write Dialogue**: Format as `SpeakerName: dialogue text`
 4. **Generate**: Click "Generate Speech" to create the audio
+
+### Quick Demo with Sample Prompts
+1. **Select a preset** from the "Sample Prompts" dropdown
+2. Mode, voice, speaker names, and text are auto-filled
+3. **Click "Generate Speech"** to hear it immediately
+
+#### Available Sample Presets
+
+**Single Speaker (7 presets):**
+| Preset | Voice | Description |
+|---|---|---|
+| News Anchor | Charon (Informative) | NHK-style news reading about cherry blossoms |
+| Radio DJ | Puck (Upbeat) | Energetic morning radio with excitement |
+| Storytelling | Achernar (Soft) | Gentle fairy tale narration with whispers |
+| Presentation | Kore (Firm) | Confident business presentation |
+| Emotional Acting | Fenrir (Excitable) | Joy, surprise, tears — full range of emotions |
+| Whisper ASMR | Enceladus (Breathy) | Soft whispered goodnight message |
+| Weather Forecast | Schedar (Even) | Calm, steady weather report |
+
+**Multi Speaker (3 presets):**
+| Preset | Speakers | Description |
+|---|---|---|
+| Podcast Interview | Host (Puck) + Guest (Kore) | AI research discussion |
+| Casual Chat | Yuki (Aoede) + Hiro (Achird) | Friends catching up at a café |
+| Sports Interview | Reporter (Charon) + Athlete (Fenrir) | Post-game victory interview |
 
 ## Voice Options
 
