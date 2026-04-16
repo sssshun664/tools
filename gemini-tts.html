@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini TTS</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #0891b2 0%, #6366f1 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #0891b2 0%, #6366f1 100%);
+            color: white;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .header h1 { font-size: 24px; margin-bottom: 8px; }
+        .header p { font-size: 14px; opacity: 0.9; }
+
+        .content { padding: 24px; }
+        .section { margin-bottom: 24px; }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #0891b2;
+        }
+
+        .input-group { margin-bottom: 16px; }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: #555;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            transition: border-color 0.3s;
+            font-family: inherit;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #0891b2;
+        }
+
+        textarea { resize: vertical; min-height: 120px; }
+
+        .mode-switch { display: flex; gap: 8px; }
+
+        .mode-btn {
+            flex: 1;
+            padding: 10px;
+            background: #f5f5f5;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .mode-btn.active {
+            background: #0891b2;
+            color: white;
+            border-color: #0891b2;
+        }
+
+        .speaker-config {
+            background: #f9f9f9;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .speaker-config-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #0891b2;
+            margin-bottom: 12px;
+        }
+
+        .speaker-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(135deg, #0891b2 0%, #6366f1 100%);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            touch-action: manipulation;
+        }
+
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .audio-player {
+            margin-top: 16px;
+            padding: 20px;
+            background: #f9f9f9;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .audio-player audio { width: 100%; margin-bottom: 12px; }
+
+        .btn-download {
+            display: inline-block;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+            background: #059669;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .btn-download:active { transform: scale(0.98); }
+
+        .loading { text-align: center; padding: 20px; color: #0891b2; font-weight: 500; }
+
+        .error {
+            padding: 12px;
+            background: #fee;
+            border: 1px solid #fcc;
+            border-radius: 8px;
+            color: #c33;
+            font-size: 14px;
+            margin-top: 12px;
+        }
+
+        .success {
+            padding: 12px;
+            background: #efe;
+            border: 1px solid #cfc;
+            border-radius: 8px;
+            color: #3c3;
+            font-size: 14px;
+            margin-top: 12px;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        @media (max-width: 480px) {
+            .speaker-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Gemini TTS</h1>
+            <p>Text-to-Speech with Gemini 3.1 Flash TTS Preview</p>
+        </div>
+
+        <div class="content">
+            <!-- API Key -->
+            <div class="section">
+                <div class="section-title">API Key</div>
+                <div class="input-group">
+                    <label for="apiKey">Google AI API Key</label>
+                    <input type="password" id="apiKey" placeholder="AIza...">
+                </div>
+            </div>
+
+            <!-- Mode Switch -->
+            <div class="section">
+                <div class="section-title">Mode</div>
+                <div class="mode-switch">
+                    <button class="mode-btn active" id="singleModeBtn">Single Speaker</button>
+                    <button class="mode-btn" id="multiModeBtn">Multi Speaker</button>
+                </div>
+            </div>
+
+            <!-- Single Speaker Config -->
+            <div class="section" id="singleConfig">
+                <div class="section-title">Voice</div>
+                <div class="input-group">
+                    <label for="voiceSelect">Select Voice</label>
+                    <select id="voiceSelect"></select>
+                </div>
+            </div>
+
+            <!-- Multi Speaker Config -->
+            <div class="section" id="multiConfig" style="display: none;">
+                <div class="section-title">Speakers (up to 2)</div>
+                <div class="speaker-config">
+                    <div class="speaker-config-title">Speaker 1</div>
+                    <div class="speaker-row">
+                        <div class="input-group">
+                            <label for="speaker1Name">Name</label>
+                            <input type="text" id="speaker1Name" value="Speaker1">
+                        </div>
+                        <div class="input-group">
+                            <label for="speaker1Voice">Voice</label>
+                            <select id="speaker1Voice"></select>
+                        </div>
+                    </div>
+                </div>
+                <div class="speaker-config">
+                    <div class="speaker-config-title">Speaker 2</div>
+                    <div class="speaker-row">
+                        <div class="input-group">
+                            <label for="speaker2Name">Name</label>
+                            <input type="text" id="speaker2Name" value="Speaker2">
+                        </div>
+                        <div class="input-group">
+                            <label for="speaker2Voice">Voice</label>
+                            <select id="speaker2Voice"></select>
+                        </div>
+                    </div>
+                </div>
+                <div class="hint">Use the same speaker names in your text below (e.g., "Speaker1: Hello!")</div>
+            </div>
+
+            <!-- Text Input -->
+            <div class="section">
+                <div class="section-title">Text</div>
+                <div class="input-group">
+                    <label for="textInput">Enter text to convert to speech</label>
+                    <textarea id="textInput" placeholder="Say cheerfully: Have a wonderful day!
+
+You can control style, accent, pace and tone with natural language. Audio tags like [whispers], [laughs], [excited] can be placed inline."></textarea>
+                </div>
+            </div>
+
+            <!-- Generate Button -->
+            <button class="btn" id="generateBtn">Generate Speech</button>
+
+            <!-- Status -->
+            <div id="statusMsg"></div>
+
+            <!-- Audio Player -->
+            <div class="audio-player" id="audioPlayer" style="display: none;">
+                <audio id="audioElement" controls></audio>
+                <br>
+                <a class="btn-download" id="downloadBtn" download="gemini-tts.wav">Download WAV</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const VOICES = [
+            ['Zephyr', 'Bright'], ['Puck', 'Upbeat'], ['Charon', 'Informative'],
+            ['Kore', 'Firm'], ['Fenrir', 'Excitable'], ['Leda', 'Youthful'],
+            ['Orus', 'Firm'], ['Aoede', 'Breezy'], ['Callirrhoe', 'Easy-going'],
+            ['Autonoe', 'Bright'], ['Enceladus', 'Breathy'], ['Iapetus', 'Clear'],
+            ['Umbriel', 'Easy-going'], ['Algieba', 'Smooth'], ['Despina', 'Smooth'],
+            ['Erinome', 'Clear'], ['Algenib', 'Gravelly'], ['Rasalgethi', 'Informative'],
+            ['Laomedeia', 'Upbeat'], ['Achernar', 'Soft'], ['Alnilam', 'Firm'],
+            ['Schedar', 'Even'], ['Gacrux', 'Mature'], ['Pulcherrima', 'Forward'],
+            ['Achird', 'Friendly'], ['Zubenelgenubi', 'Casual'], ['Vindemiatrix', 'Gentle'],
+            ['Sadachbia', 'Lively'], ['Sadaltager', 'Knowledgeable'], ['Sulafat', 'Warm'],
+        ];
+
+        const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent';
+        let isMultiMode = false;
+        let currentAudioUrl = null;
+
+        function populateVoiceSelect(selectEl) {
+            VOICES.forEach(([name, style]) => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = `${name} - ${style}`;
+                selectEl.appendChild(opt);
+            });
+        }
+
+        const voiceSelect = document.getElementById('voiceSelect');
+        const speaker1Voice = document.getElementById('speaker1Voice');
+        const speaker2Voice = document.getElementById('speaker2Voice');
+        populateVoiceSelect(voiceSelect);
+        populateVoiceSelect(speaker1Voice);
+        populateVoiceSelect(speaker2Voice);
+        speaker2Voice.value = 'Puck';
+
+        // Persist API key
+        const apiKeyInput = document.getElementById('apiKey');
+        const savedKey = localStorage.getItem('gemini_api_key');
+        if (savedKey) apiKeyInput.value = savedKey;
+        apiKeyInput.addEventListener('change', () => {
+            localStorage.setItem('gemini_api_key', apiKeyInput.value);
+        });
+
+        // Mode switch
+        const textInput = document.getElementById('textInput');
+        document.getElementById('singleModeBtn').addEventListener('click', () => {
+            isMultiMode = false;
+            document.getElementById('singleModeBtn').classList.add('active');
+            document.getElementById('multiModeBtn').classList.remove('active');
+            document.getElementById('singleConfig').style.display = 'block';
+            document.getElementById('multiConfig').style.display = 'none';
+            textInput.placeholder = 'Say cheerfully: Have a wonderful day!\n\nYou can control style, accent, pace and tone with natural language. Audio tags like [whispers], [laughs], [excited] can be placed inline.';
+        });
+
+        document.getElementById('multiModeBtn').addEventListener('click', () => {
+            isMultiMode = true;
+            document.getElementById('singleModeBtn').classList.remove('active');
+            document.getElementById('multiModeBtn').classList.add('active');
+            document.getElementById('singleConfig').style.display = 'none';
+            document.getElementById('multiConfig').style.display = 'block';
+            textInput.placeholder = 'Speaker1: How\'s it going today?\nSpeaker2: Not too bad, how about you?\n\nUse the speaker names defined above in your conversation text.';
+        });
+
+        // Create WAV from raw PCM (16-bit, 24kHz, mono)
+        function pcmToWav(pcmBytes) {
+            const numChannels = 1, sampleRate = 24000, bitsPerSample = 16;
+            const byteRate = sampleRate * numChannels * bitsPerSample / 8;
+            const blockAlign = numChannels * bitsPerSample / 8;
+            const dataLen = pcmBytes.byteLength;
+            const buffer = new ArrayBuffer(44 + dataLen);
+            const view = new DataView(buffer);
+
+            function writeStr(offset, str) {
+                for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+            }
+
+            writeStr(0, 'RIFF');
+            view.setUint32(4, 36 + dataLen, true);
+            writeStr(8, 'WAVE');
+            writeStr(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, byteRate, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, bitsPerSample, true);
+            writeStr(36, 'data');
+            view.setUint32(40, dataLen, true);
+
+            const wav = new Uint8Array(buffer);
+            wav.set(new Uint8Array(pcmBytes), 44);
+            return wav;
+        }
+
+        // Generate speech
+        document.getElementById('generateBtn').addEventListener('click', async () => {
+            const apiKey = apiKeyInput.value.trim();
+            const text = textInput.value.trim();
+
+            if (!apiKey) return showError('Please enter your Google AI API key.');
+            if (!text) return showError('Please enter text to convert to speech.');
+
+            showLoading();
+            document.getElementById('generateBtn').disabled = true;
+
+            try {
+                let speechConfig;
+                if (isMultiMode) {
+                    const s1 = document.getElementById('speaker1Name').value.trim() || 'Speaker1';
+                    const s2 = document.getElementById('speaker2Name').value.trim() || 'Speaker2';
+                    speechConfig = {
+                        multiSpeakerVoiceConfig: {
+                            speakerVoiceConfigs: [
+                                { speaker: s1, voiceConfig: { prebuiltVoiceConfig: { voiceName: speaker1Voice.value } } },
+                                { speaker: s2, voiceConfig: { prebuiltVoiceConfig: { voiceName: speaker2Voice.value } } },
+                            ]
+                        }
+                    };
+                } else {
+                    speechConfig = {
+                        voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceSelect.value } }
+                    };
+                }
+
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text }] }],
+                        generationConfig: { responseModalities: ['AUDIO'], speechConfig },
+                    }),
+                });
+
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error?.message || `HTTP ${res.status}`);
+                }
+
+                const data = await res.json();
+                const audioBase64 = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+                if (!audioBase64) throw new Error('No audio data in response.');
+
+                // Decode base64 to PCM bytes
+                const raw = atob(audioBase64);
+                const pcm = new Uint8Array(raw.length);
+                for (let i = 0; i < raw.length; i++) pcm[i] = raw.charCodeAt(i);
+
+                // Convert to WAV and play
+                const wav = pcmToWav(pcm.buffer);
+                const blob = new Blob([wav], { type: 'audio/wav' });
+
+                if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
+                currentAudioUrl = URL.createObjectURL(blob);
+
+                const audioEl = document.getElementById('audioElement');
+                audioEl.src = currentAudioUrl;
+                document.getElementById('downloadBtn').href = currentAudioUrl;
+                document.getElementById('audioPlayer').style.display = 'block';
+
+                showSuccess('Speech generated successfully!');
+                audioEl.play();
+            } catch (e) {
+                showError('Error: ' + e.message);
+            } finally {
+                document.getElementById('generateBtn').disabled = false;
+            }
+        });
+
+        function showLoading() {
+            document.getElementById('statusMsg').innerHTML = '<div class="loading">Generating speech...</div>';
+        }
+        function showError(msg) {
+            document.getElementById('statusMsg').innerHTML = '<div class="error">' + msg + '</div>';
+        }
+        function showSuccess(msg) {
+            document.getElementById('statusMsg').innerHTML = '<div class="success">' + msg + '</div>';
+        }
+    </script>
+</body>
+</html>
