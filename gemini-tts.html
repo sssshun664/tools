@@ -179,7 +179,7 @@
                 <div class="section-title">API Key</div>
                 <div class="input-group">
                     <label for="apiKey">Google AI API Key</label>
-                    <input type="password" id="apiKey" placeholder="AIza...">
+                    <input type="password" id="apiKey">
                 </div>
             </div>
 
@@ -380,7 +380,7 @@
         // ── API key persistence ──
         const saved = localStorage.getItem('gemini_api_key');
         if (saved) apiKeyInput.value = saved;
-        apiKeyInput.addEventListener('change', () => localStorage.setItem('gemini_api_key', apiKeyInput.value));
+        apiKeyInput.addEventListener('input', () => localStorage.setItem('gemini_api_key', apiKeyInput.value));
 
         // ── Mode switch ──
         function setMode(multi) {
