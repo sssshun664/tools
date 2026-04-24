@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenRouter Image Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+
+    .gen-item { cursor: pointer; transition: background 0.15s; }
+    .gen-item.active { background: #1f2937; }
+    .gen-item:not(.active):hover { background: #111827; }
+
+    #sidebar { transition: width 0.2s ease, opacity 0.2s ease; }
+    #sidebar.collapsed { width: 0; opacity: 0; overflow: hidden; border-right: none; padding: 0; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { animation: spin 1s linear infinite; }
+
+    @keyframes pulse-opacity { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.9; } }
+    .pulse { animation: pulse-opacity 1.5s ease-in-out infinite; }
+
+    textarea { font-family: inherit; }
+
+    @media (max-width: 768px) {
+      #sidebar { position: fixed; z-index: 40; height: 100%; }
+      #sidebar.collapsed { width: 0; }
+      #sidebar:not(.collapsed) { width: 260px; }
+      #sidebarOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 39; }
+      #sidebarOverlay.active { display: block; }
+    }
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-100 h-screen flex overflow-hidden font-sans">
+
+  <div id="sidebarOverlay"></div>
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="w-60 flex-shrink-0 bg-gray-900 flex flex-col border-r border-gray-800">
+    <div class="p-3">
+      <button id="newGenBtn"
+        class="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-gray-800 hover:bg-gray-700 active:bg-gray-600 transition-colors text-sm font-medium text-gray-200">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        新しい生成
+      </button>
+    </div>
+
+    <div id="historyList" class="flex-1 overflow-y-auto px-2 space-y-0.5 py-1"></div>
+
+    <div class="p-3 border-t border-gray-800">
+      <button id="settingsBtn"
+        class="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors text-sm text-gray-400 hover:text-gray-200">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        設定
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
+    <header class="flex items-center justify-between px-5 py-3 border-b border-gray-800 bg-gray-900 flex-shrink-0">
+      <div class="flex items-center gap-3 min-w-0">
+        <button id="sidebarToggle" class="p-1.5 rounded-lg hover:bg-gray-800 transition-colors text-gray-400 hover:text-gray-200 flex-shrink-0" title="サイドバー切替">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
+        <h1 class="font-semibold text-gray-100 text-sm whitespace-nowrap">OpenRouter Image Generator</h1>
+        <span id="modelBadge"
+          class="text-xs text-gray-400 bg-gray-800 px-2.5 py-1 rounded-full truncate max-w-xs border border-gray-700"></span>
+      </div>
+      <div id="genStatus" class="text-xs text-gray-500 flex-shrink-0"></div>
+    </header>
+
+    <!-- Result Area -->
+    <div id="resultArea" class="flex-1 overflow-y-auto px-4 py-6"></div>
+
+    <!-- Input Area -->
+    <div class="px-4 pb-4 pt-3 border-t border-gray-800 bg-gray-900 flex-shrink-0">
+      <div class="max-w-3xl mx-auto">
+        <!-- Options Row -->
+        <div class="flex flex-wrap gap-x-4 gap-y-2 mb-3">
+          <div class="flex items-center gap-1.5">
+            <span class="text-xs text-gray-500 flex-shrink-0">アスペクト比:</span>
+            <select id="aspectRatioSelect"
+              class="bg-gray-800 rounded-lg px-2.5 py-1.5 text-xs outline-none border border-gray-700 focus:border-purple-500/50 transition-colors text-gray-300">
+              <option value="1:1">1:1 正方形</option>
+              <option value="16:9">16:9 横長</option>
+              <option value="9:16">9:16 縦長</option>
+              <option value="4:3">4:3</option>
+              <option value="3:4">3:4</option>
+              <option value="3:2">3:2</option>
+              <option value="2:3">2:3</option>
+              <option value="21:9">21:9 超横長</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-xs text-gray-500 flex-shrink-0">解像度:</span>
+            <select id="imageSizeSelect"
+              class="bg-gray-800 rounded-lg px-2.5 py-1.5 text-xs outline-none border border-gray-700 focus:border-purple-500/50 transition-colors text-gray-300">
+              <option value="1K">1K 標準</option>
+              <option value="2K">2K 高解像度</option>
+              <option value="4K">4K 最高解像度</option>
+            </select>
+          </div>
+        </div>
+        <!-- Prompt Row -->
+        <div class="flex gap-2 items-end">
+          <div class="flex-1">
+            <textarea id="promptInput"
+              placeholder="画像のプロンプトを入力… (Enter で生成 / Shift+Enter で改行)"
+              class="w-full bg-gray-800 rounded-xl px-4 py-3 text-sm resize-none outline-none border border-gray-700 focus:border-purple-500/50 transition-colors min-h-[52px] max-h-48 leading-relaxed"
+              rows="1"></textarea>
+          </div>
+          <button id="generateBtn"
+            class="flex-shrink-0 p-3 rounded-xl bg-purple-600 hover:bg-purple-500 active:bg-purple-700 disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Settings Modal -->
+  <div id="settingsModal"
+    class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 items-center justify-center p-4"
+    style="display:none;">
+    <div class="bg-gray-900 rounded-2xl w-full max-w-lg border border-gray-700/80 shadow-2xl flex flex-col max-h-[90vh]">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+        <h2 class="text-base font-semibold">設定</h2>
+        <button id="closeSettingsBtn" class="text-gray-500 hover:text-gray-200 transition-colors p-1 rounded-lg hover:bg-gray-800">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="overflow-y-auto flex-1">
+        <div class="px-6 py-5 space-y-5">
+          <!-- API Key -->
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-1.5">
+              OpenRouter API キー
+              <a href="https://openrouter.ai/keys" target="_blank" rel="noopener"
+                class="ml-2 text-xs text-blue-400 hover:text-blue-300 hover:underline">取得 →</a>
+            </label>
+            <div class="relative">
+              <input id="apiKeyInput" type="password" placeholder="sk-or-v1-..."
+                class="w-full bg-gray-800 rounded-lg px-4 py-2.5 text-sm outline-none border border-gray-700 focus:border-blue-500/50 transition-colors pr-16"/>
+              <button id="toggleApiKey"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-gray-300 font-medium transition-colors">
+                表示
+              </button>
+            </div>
+          </div>
+
+          <!-- Model -->
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-1.5">モデル</label>
+            <select id="modelSelect"
+              class="w-full bg-gray-800 rounded-lg px-4 py-2.5 text-sm outline-none border border-gray-700 focus:border-blue-500/50 transition-colors">
+              <option value="openai/gpt-image-2">openai/gpt-image-2</option>
+            </select>
+            <p id="modelCountMsg" class="text-xs text-gray-500 mt-1.5"></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-6 py-4 border-t border-gray-800">
+        <button id="saveSettingsBtn"
+          class="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 rounded-xl py-2.5 text-sm font-semibold transition-colors">
+          保存して閉じる
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_MODEL = 'openai/gpt-image-2';
+    const API_BASE = 'https://openrouter.ai/api/v1';
+    const SK_APIKEY = 'or-img-apikey';
+    const SK_MODEL  = 'or-img-model';
+
+    let state = {
+      apiKey: '',
+      selectedModel: DEFAULT_MODEL,
+      generations: [],
+      currentGenId: null,
+    };
+
+    let isGenerating = false;
+
+    // ── Utilities ──────────────────────────────────────────────
+    function genId() {
+      return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // ── Persistence ────────────────────────────────────────────
+    function loadSettings() {
+      state.apiKey       = localStorage.getItem(SK_APIKEY) || '';
+      state.selectedModel = localStorage.getItem(SK_MODEL) || DEFAULT_MODEL;
+    }
+
+    function persistSettings() {
+      localStorage.setItem(SK_APIKEY, state.apiKey);
+      localStorage.setItem(SK_MODEL,  state.selectedModel);
+    }
+
+    // ── State helpers ──────────────────────────────────────────
+    function getCurrentGen() {
+      return state.generations.find(g => g.id === state.currentGenId) || null;
+    }
+
+    function newGeneration() {
+      state.currentGenId = null;
+      renderSidebar();
+      renderResult();
+      document.getElementById('promptInput').focus();
+    }
+
+    function switchGen(id) {
+      state.currentGenId = id;
+      renderSidebar();
+      renderResult();
+    }
+
+    function deleteGen(id) {
+      state.generations = state.generations.filter(g => g.id !== id);
+      if (state.currentGenId === id) {
+        state.currentGenId = state.generations.length ? state.generations[0].id : null;
+      }
+      renderSidebar();
+      renderResult();
+    }
+
+    // ── Sidebar ────────────────────────────────────────────────
+    function renderSidebar() {
+      const list = document.getElementById('historyList');
+      list.innerHTML = '';
+
+      if (state.generations.length === 0) {
+        list.innerHTML = '<p class="text-xs text-gray-600 px-3 py-4 text-center">生成履歴なし</p>';
+        return;
+      }
+
+      state.generations.forEach(gen => {
+        const el = document.createElement('div');
+        el.className = 'gen-item flex items-center gap-2 px-2 py-2 rounded-lg group ' +
+          (gen.id === state.currentGenId ? 'active' : '');
+
+        // Thumbnail
+        const thumb = document.createElement('div');
+        thumb.style.cssText = 'flex-shrink:0;width:36px;height:36px;border-radius:6px;overflow:hidden;background:#111827;border:1px solid #374151;';
+        if (gen.images && gen.images.length > 0) {
+          const img = document.createElement('img');
+          img.src = gen.images[0].url;
+          img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+          img.alt = '';
+          thumb.appendChild(img);
+        } else if (gen.error) {
+          thumb.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:14px;">⚠️</div>';
+        } else {
+          thumb.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;" class="pulse">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/>
+            </svg></div>`;
+        }
+        el.appendChild(thumb);
+
+        const meta = document.createElement('div');
+        meta.className = 'flex-1 min-w-0';
+        meta.innerHTML = `
+          <p class="text-xs text-gray-300 truncate">${escapeHtml(gen.prompt.slice(0, 38))}${gen.prompt.length > 38 ? '…' : ''}</p>
+          <p class="text-xs text-gray-600 mt-0.5">${escapeHtml(gen.aspectRatio)} · ${escapeHtml(gen.imageSize)}</p>`;
+        el.appendChild(meta);
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'flex-shrink-0 opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition-all p-0.5 rounded';
+        delBtn.title = '削除';
+        delBtn.innerHTML = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>`;
+        delBtn.addEventListener('click', e => { e.stopPropagation(); deleteGen(gen.id); });
+        el.appendChild(delBtn);
+
+        el.addEventListener('click', () => switchGen(gen.id));
+        list.appendChild(el);
+      });
+    }
+
+    // ── Result Area ────────────────────────────────────────────
+    function renderResult() {
+      const area = document.getElementById('resultArea');
+      const gen = getCurrentGen();
+
+      if (!gen) {
+        area.innerHTML = `
+          <div class="flex flex-col items-center justify-center h-full text-center select-none">
+            <div class="w-16 h-16 rounded-2xl bg-gray-800 flex items-center justify-center mb-4 border border-gray-700">
+              <svg class="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+            </div>
+            <p class="text-gray-400 font-medium">OpenRouter Image Generator</p>
+            <p class="text-gray-600 text-sm mt-1.5">プロンプトを入力して画像を生成しましょう</p>
+            <p class="text-gray-700 text-xs mt-3">モデル: <span class="text-gray-600">${escapeHtml(state.selectedModel)}</span></p>
+          </div>`;
+        return;
+      }
+
+      area.innerHTML = '';
+      const wrap = document.createElement('div');
+      wrap.className = 'max-w-3xl mx-auto';
+
+      // Prompt bubble (user side)
+      const promptEl = document.createElement('div');
+      promptEl.className = 'mb-5 flex justify-end';
+      promptEl.innerHTML = `
+        <div class="max-w-[85%] bg-purple-700 rounded-2xl rounded-tr-sm px-4 py-3 text-sm text-white whitespace-pre-wrap break-words leading-relaxed">
+          ${escapeHtml(gen.prompt)}
+        </div>`;
+      wrap.appendChild(promptEl);
+
+      // Result bubble (assistant side)
+      const resultRow = document.createElement('div');
+      resultRow.className = 'flex justify-start';
+
+      const inner = document.createElement('div');
+      inner.className = 'max-w-full w-full';
+
+      if (gen.generating) {
+        inner.innerHTML = `
+          <div class="inline-flex bg-gray-800 border border-gray-700/50 rounded-2xl rounded-tl-sm px-6 py-8 flex-col items-center gap-3">
+            <svg class="w-8 h-8 text-purple-400 spinner" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            <p class="text-sm text-gray-400">画像を生成中…</p>
+            <p class="text-xs text-gray-600">複雑なプロンプトは最大2分かかる場合があります</p>
+          </div>`;
+      } else if (gen.error) {
+        inner.innerHTML = `
+          <div class="inline-block bg-red-950/50 border border-red-800/60 rounded-2xl rounded-tl-sm px-4 py-3 text-sm text-red-400">
+            <span class="font-medium">エラー:</span> ${escapeHtml(gen.error)}
+          </div>`;
+      } else if (gen.images && gen.images.length > 0) {
+        const imgGrid = document.createElement('div');
+        imgGrid.className = gen.images.length === 1 ? 'inline-block' : 'grid grid-cols-2 gap-3';
+
+        gen.images.forEach((imgData, idx) => {
+          const imgWrap = document.createElement('div');
+          imgWrap.style.cssText = 'position:relative;display:inline-block;';
+
+          const imgEl = document.createElement('img');
+          imgEl.src = imgData.url;
+          imgEl.className = 'rounded-2xl rounded-tl-sm border border-gray-700 block';
+          imgEl.style.cssText = 'max-width:100%;max-height:72vh;';
+          imgEl.alt = gen.prompt;
+          imgWrap.appendChild(imgEl);
+
+          const dlBtn = document.createElement('button');
+          dlBtn.className = 'absolute top-2 right-2 p-2 rounded-lg bg-gray-900/80 hover:bg-gray-800 border border-gray-600/50 text-gray-300 hover:text-white transition-colors backdrop-blur-sm';
+          dlBtn.title = 'ダウンロード';
+          dlBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>`;
+          dlBtn.addEventListener('click', () => downloadImage(imgData.url, `image-${gen.id}-${idx + 1}.png`));
+          imgWrap.appendChild(dlBtn);
+
+          imgGrid.appendChild(imgWrap);
+        });
+
+        inner.appendChild(imgGrid);
+
+        if (gen.text) {
+          const textEl = document.createElement('div');
+          textEl.className = 'mt-3 text-sm text-gray-400 bg-gray-800/50 rounded-xl px-4 py-3 border border-gray-700/50 whitespace-pre-wrap';
+          textEl.textContent = gen.text;
+          inner.appendChild(textEl);
+        }
+
+        const metaEl = document.createElement('div');
+        metaEl.className = 'mt-3 text-xs text-gray-600 flex gap-3 flex-wrap';
+        metaEl.innerHTML = `
+          <span>${escapeHtml(gen.model)}</span>
+          <span>${escapeHtml(gen.aspectRatio)}</span>
+          <span>${escapeHtml(gen.imageSize)}</span>`;
+        inner.appendChild(metaEl);
+      } else {
+        inner.innerHTML = `
+          <div class="inline-block bg-gray-800 border border-gray-700/50 rounded-2xl rounded-tl-sm px-4 py-3 text-sm text-gray-400">
+            画像が返されませんでした。モデルが画像生成に対応しているか確認してください。
+          </div>`;
+      }
+
+      resultRow.appendChild(inner);
+      wrap.appendChild(resultRow);
+      area.appendChild(wrap);
+    }
+
+    function downloadImage(url, filename) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+    }
+
+    // ── Generate ───────────────────────────────────────────────
+    async function generateImage() {
+      if (isGenerating) return;
+      const promptInput = document.getElementById('promptInput');
+      const prompt = promptInput.value.trim();
+      if (!prompt) return;
+      if (!state.apiKey) { openSettings(); return; }
+
+      const aspectRatio = document.getElementById('aspectRatioSelect').value;
+      const imageSize   = document.getElementById('imageSizeSelect').value;
+
+      const gen = {
+        id: genId(),
+        prompt,
+        model: state.selectedModel,
+        aspectRatio,
+        imageSize,
+        images: [],
+        text: '',
+        generating: true,
+        error: null,
+        createdAt: Date.now(),
+      };
+
+      state.generations.unshift(gen);
+      state.currentGenId = gen.id;
+
+      promptInput.value = '';
+      promptInput.style.height = 'auto';
+
+      renderSidebar();
+      renderResult();
+
+      isGenerating = true;
+      setGenState(true);
+      document.getElementById('genStatus').textContent = '生成中…';
+
+      try {
+        const res = await fetch(`${API_BASE}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${state.apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': location.origin,
+            'X-Title': 'OpenRouter Image Generator',
+          },
+          body: JSON.stringify({
+            model: state.selectedModel,
+            messages: [{ role: 'user', content: prompt }],
+            modalities: ['image', 'text'],
+            image_config: {
+              aspect_ratio: aspectRatio,
+              image_size: imageSize,
+            },
+          }),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData?.error?.message || `HTTP ${res.status}: ${res.statusText}`);
+        }
+
+        const data = await res.json();
+        const message = data.choices?.[0]?.message;
+        if (!message) throw new Error('レスポンスが空でした');
+
+        // Extract images from message.images (OpenRouter format)
+        const images = [];
+        if (Array.isArray(message.images)) {
+          message.images.forEach(img => {
+            const url = img?.image_url?.url || img?.url;
+            if (url) images.push({ url });
+          });
+        }
+
+        // Fallback: base64 data URL in content
+        if (images.length === 0 && typeof message.content === 'string' && message.content.startsWith('data:image')) {
+          images.push({ url: message.content });
+        }
+
+        gen.images = images;
+        gen.text = (typeof message.content === 'string' && !message.content.startsWith('data:'))
+          ? message.content : '';
+        gen.generating = false;
+
+      } catch (err) {
+        gen.generating = false;
+        gen.error = err.message;
+      } finally {
+        isGenerating = false;
+        setGenState(false);
+        document.getElementById('genStatus').textContent = '';
+        renderSidebar();
+        renderResult();
+        promptInput.focus();
+      }
+    }
+
+    function setGenState(on) {
+      document.getElementById('generateBtn').disabled = on;
+      document.getElementById('promptInput').disabled = on;
+    }
+
+    // ── Models ─────────────────────────────────────────────────
+    async function loadModels() {
+      const sel = document.getElementById('modelSelect');
+      const msg = document.getElementById('modelCountMsg');
+      msg.textContent = 'モデルを読み込み中…';
+      sel.disabled = true;
+
+      try {
+        const headers = state.apiKey ? { 'Authorization': `Bearer ${state.apiKey}` } : {};
+        const res = await fetch(`${API_BASE}/models`, { headers });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        const all = data.data || [];
+        // Filter to image-output models
+        const imgModels = all.filter(m => {
+          const out = m.output_modalities
+            || m.architecture?.output_modalities
+            || m.architecture?.modalities?.output
+            || [];
+          if (out.includes('image')) return true;
+          const id = m.id.toLowerCase();
+          return id.includes('image') || id.includes('flux') || id.includes('dall-e') || id.includes('imagen');
+        }).sort((a, b) => a.id.localeCompare(b.id));
+
+        const models = imgModels.length > 0 ? imgModels : all.sort((a, b) => a.id.localeCompare(b.id));
+
+        const groups = {};
+        models.forEach(m => {
+          const p = m.id.split('/')[0] || 'other';
+          (groups[p] = groups[p] || []).push(m);
+        });
+
+        sel.innerHTML = '';
+        Object.keys(groups).sort().forEach(provider => {
+          const og = document.createElement('optgroup');
+          og.label = provider;
+          groups[provider].forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = m.id.split('/').slice(1).join('/');
+            if (m.id === state.selectedModel) opt.selected = true;
+            og.appendChild(opt);
+          });
+          sel.appendChild(og);
+        });
+
+        // Ensure current model is always selectable
+        if (!models.find(m => m.id === state.selectedModel)) {
+          const opt = document.createElement('option');
+          opt.value = state.selectedModel;
+          opt.textContent = state.selectedModel;
+          opt.selected = true;
+          sel.insertBefore(opt, sel.firstChild);
+        }
+
+        msg.textContent = imgModels.length > 0
+          ? `${imgModels.length} モデル (画像出力対応)`
+          : `${all.length} モデル (全モデル表示)`;
+      } catch (e) {
+        sel.innerHTML = `<option value="${escapeHtml(state.selectedModel)}">${escapeHtml(state.selectedModel)}</option>`;
+        msg.textContent = `読み込み失敗: ${e.message}`;
+      } finally {
+        sel.disabled = false;
+      }
+    }
+
+    // ── Settings ───────────────────────────────────────────────
+    function openSettings() {
+      document.getElementById('apiKeyInput').value = state.apiKey;
+      document.getElementById('settingsModal').style.display = 'flex';
+      loadModels();
+    }
+
+    function closeSettings() {
+      document.getElementById('settingsModal').style.display = 'none';
+    }
+
+    function applySettings() {
+      state.apiKey       = document.getElementById('apiKeyInput').value.trim();
+      state.selectedModel = document.getElementById('modelSelect').value;
+      persistSettings();
+      updateBadge();
+      closeSettings();
+    }
+
+    function updateBadge() {
+      const b = document.getElementById('modelBadge');
+      b.textContent = state.selectedModel;
+      b.title = state.selectedModel;
+    }
+
+    // ── Events ─────────────────────────────────────────────────
+    document.getElementById('newGenBtn').addEventListener('click', newGeneration);
+    document.getElementById('settingsBtn').addEventListener('click', openSettings);
+    document.getElementById('closeSettingsBtn').addEventListener('click', closeSettings);
+    document.getElementById('saveSettingsBtn').addEventListener('click', applySettings);
+    document.getElementById('generateBtn').addEventListener('click', generateImage);
+
+    document.getElementById('settingsModal').addEventListener('click', e => {
+      if (e.target === document.getElementById('settingsModal')) closeSettings();
+    });
+
+    document.getElementById('toggleApiKey').addEventListener('click', function () {
+      const inp = document.getElementById('apiKeyInput');
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+      this.textContent = inp.type === 'password' ? '表示' : '隠す';
+    });
+
+    document.getElementById('promptInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        if (document.getElementById('promptInput').value.trim()) generateImage();
+      }
+    });
+
+    document.getElementById('promptInput').addEventListener('input', function () {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 192) + 'px';
+    });
+
+    // Sidebar toggle
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      sidebar.classList.toggle('collapsed');
+      overlay.classList.toggle('active', !sidebar.classList.contains('collapsed') && window.innerWidth <= 768);
+    }
+    document.getElementById('sidebarToggle').addEventListener('click', toggleSidebar);
+    document.getElementById('sidebarOverlay').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.add('collapsed');
+      document.getElementById('sidebarOverlay').classList.remove('active');
+    });
+    if (window.innerWidth <= 768) {
+      document.getElementById('sidebar').classList.add('collapsed');
+    }
+
+    // ── Init ───────────────────────────────────────────────────
+    loadSettings();
+    updateBadge();
+    renderSidebar();
+    renderResult();
+
+    if (!state.apiKey) setTimeout(openSettings, 400);
+  </script>
+</body>
+</html>
