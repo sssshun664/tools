@@ -199,7 +199,7 @@
             <div class="audio-result" id="audioResult" style="display: none;">
                 <audio id="audioElement" controls></audio>
                 <br>
-                <a class="btn-download" id="downloadBtn" download="gemini-tts.mp3">Download MP3</a>
+                <a class="btn-download" id="downloadBtn" download="gemini-tts.wav">Download WAV</a>
             </div>
         </div>
     </div>
@@ -284,6 +284,22 @@
             textInput.focus();
         });
 
+        // ── PCM to WAV ──
+        function pcmToWav(pcmBuf) {
+            const sr = 24000, ch = 1, bps = 16;
+            const dLen = pcmBuf.byteLength;
+            const buf = new ArrayBuffer(44 + dLen);
+            const v = new DataView(buf);
+            const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+            w(0,'RIFF'); v.setUint32(4, 36 + dLen, true); w(8,'WAVE');
+            w(12,'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true);
+            v.setUint16(22, ch, true); v.setUint32(24, sr, true);
+            v.setUint32(28, sr * ch * bps / 8, true); v.setUint16(32, ch * bps / 8, true);
+            v.setUint16(34, bps, true); w(36,'data'); v.setUint32(40, dLen, true);
+            new Uint8Array(buf).set(new Uint8Array(pcmBuf), 44);
+            return new Uint8Array(buf);
+        }
+
         // ── Generate ──
         $('generateBtn').addEventListener('click', async () => {
             const apiKey = apiKeyInput.value.trim();
@@ -305,7 +321,7 @@
                         model: MODEL,
                         input: text,
                         voice: voiceSelect.value,
-                        response_format: 'mp3',
+                        response_format: 'pcm',
                     }),
                 });
 
@@ -314,8 +330,9 @@
                     throw new Error(err.error?.message || `HTTP ${res.status}`);
                 }
 
-                const arrayBuffer = await res.arrayBuffer();
-                const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
+                const pcmBuf = await res.arrayBuffer();
+                const wav = pcmToWav(pcmBuf);
+                const blob = new Blob([wav], { type: 'audio/wav' });
 
                 if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
                 currentAudioUrl = URL.createObjectURL(blob);
