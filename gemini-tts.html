@@ -59,6 +59,42 @@
             border-color: #0891b2;
         }
         textarea { resize: vertical; min-height: 150px; }
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: #f9f9f9;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .toggle-row input[type="checkbox"] { display: none; }
+        .toggle-switch {
+            position: relative;
+            width: 40px;
+            height: 22px;
+            background: #ccc;
+            border-radius: 11px;
+            flex-shrink: 0;
+            transition: background 0.3s;
+        }
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            top: 3px;
+            left: 3px;
+            transition: left 0.3s;
+        }
+        .toggle-row input:checked + .toggle-switch { background: #0891b2; }
+        .toggle-row input:checked + .toggle-switch::after { left: 21px; }
+        .toggle-label { font-size: 14px; font-weight: 500; color: #555; }
+        .toggle-hint { font-size: 12px; color: #888; }
         .btn {
             width: 100%;
             padding: 14px;
@@ -191,6 +227,16 @@
                 </div>
             </div>
 
+            <!-- Chunk mode toggle -->
+            <div class="section">
+                <label class="toggle-row" for="chunkToggle">
+                    <input type="checkbox" id="chunkToggle" checked>
+                    <span class="toggle-switch"></span>
+                    <span class="toggle-label">チャンク分割モード（デフォルト推奨）</span>
+                </label>
+                <div class="hint" id="chunkHint" style="margin-top:8px;">テキストを約150文字ずつ分割して複数リクエストを送信し、PCM を結合します。長文に対応できますが、チャンク間で読み上げの表現が変わる場合があります。</div>
+            </div>
+
             <!-- Generate -->
             <button class="btn" id="generateBtn">Generate Speech</button>
             <div id="statusMsg"></div>
@@ -269,6 +315,15 @@
             voiceSelect.appendChild(o);
         });
 
+        // ── Chunk toggle ──
+        const chunkToggle = $('chunkToggle');
+        const chunkHint   = $('chunkHint');
+        const HINT_ON  = 'テキストを約150文字ずつ分割して複数リクエストを送信し、PCM を結合します。長文に対応できますが、チャンク間で読み上げの表現が変わる場合があります。';
+        const HINT_OFF = '全文を1リクエストで送信します。読み上げの表現は一貫しますが、長文では末尾が切り捨てられる場合があります。';
+        chunkToggle.addEventListener('change', () => {
+            chunkHint.textContent = chunkToggle.checked ? HINT_ON : HINT_OFF;
+        });
+
         // ── API key persistence ──
         const saved = localStorage.getItem('openrouter_api_key');
         if (saved) apiKeyInput.value = saved;
@@ -331,11 +386,14 @@
             $('generateBtn').disabled = true;
 
             try {
-                const chunks = splitIntoChunks(text);
+                const useChunks = chunkToggle.checked;
+                const inputs = useChunks ? splitIntoChunks(text) : [text];
                 const pcmBuffers = [];
 
-                for (let i = 0; i < chunks.length; i++) {
-                    showStatus('loading', `音声を生成中... (${i + 1} / ${chunks.length})`);
+                for (let i = 0; i < inputs.length; i++) {
+                    showStatus('loading', inputs.length > 1
+                        ? `音声を生成中... (${i + 1} / ${inputs.length})`
+                        : '音声を生成中...');
 
                     const res = await fetch(API_URL, {
                         method: 'POST',
@@ -345,7 +403,7 @@
                         },
                         body: JSON.stringify({
                             model: MODEL,
-                            input: chunks[i],
+                            input: inputs[i],
                             voice: voiceSelect.value,
                             response_format: 'pcm',
                         }),
@@ -359,7 +417,7 @@
                     pcmBuffers.push(await res.arrayBuffer());
                 }
 
-                // Concatenate all PCM chunks into one buffer
+                // Concatenate PCM buffers (single buffer when chunk mode is off)
                 const totalLen = pcmBuffers.reduce((s, b) => s + b.byteLength, 0);
                 const combined = new Uint8Array(totalLen);
                 let offset = 0;
