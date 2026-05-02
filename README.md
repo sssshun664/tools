@@ -12,6 +12,7 @@ A collection of single-file HTML tools for various purposes.
 - `html-viewer.html` - View HTML source code of any webpage with syntax highlighting and comment extraction
 - `openrouter-chat.html` - Chat with various LLM models via OpenRouter API with streaming responses
 - `svg-viewer.html` - Preview SVG code with real-time rendering and sample templates
+- `yt-shuffle.html` - Shuffle a YouTube channel's videos and open them as a playlist in the official YouTube app
 
 ## How to Create New Tools
 
