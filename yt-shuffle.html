@@ -52,7 +52,7 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     padding: 24px 20px;
     gap: 20px;
   }
@@ -96,12 +96,101 @@
   .hint {
     font-size: 0.7rem;
     color: var(--muted);
-    margin-top: 4px;
+    margin-top: 6px;
     line-height: 1.5;
   }
 
   .row { display: flex; gap: 12px; }
   .row .field { flex: 1; }
+
+  /* Channel rows */
+  .channel-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .channel-row input { flex: 1; }
+
+  .btn-remove-channel {
+    width: 44px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
+  }
+
+  .btn-remove-channel:active {
+    background: #2a0a0a;
+    color: var(--accent);
+  }
+
+  .btn-add-channel {
+    width: 100%;
+    padding: 10px;
+    background: transparent;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+    margin-top: 4px;
+  }
+
+  .btn-add-channel:active {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Saved-channel shortcuts */
+  .shortcuts-section { margin-top: 4px; }
+
+  .shortcuts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .shortcut-chip {
+    display: inline-flex;
+    align-items: center;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+
+  .shortcut-chip:active { border-color: var(--accent); }
+
+  .shortcut-label {
+    font-size: 0.75rem;
+    padding: 6px 4px 6px 12px;
+    cursor: pointer;
+    color: var(--text);
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .shortcut-x {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 6px 10px 6px 6px;
+    font-size: 0.9rem;
+    line-height: 1;
+  }
+
+  .shortcut-x:active { color: var(--accent); }
 
   .btn-primary {
     width: 100%;
@@ -308,7 +397,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    max-height: 220px;
+    max-height: 260px;
     overflow-y: auto;
   }
 
@@ -340,6 +429,8 @@
     background: var(--surface2);
   }
 
+  .queue-text { flex: 1; min-width: 0; }
+
   .queue-title {
     font-size: 0.75rem;
     line-height: 1.3;
@@ -347,7 +438,15 @@
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    flex: 1;
+  }
+
+  .queue-channel {
+    font-size: 0.65rem;
+    color: var(--muted);
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .queue-num {
@@ -391,21 +490,6 @@
     line-height: 1.6;
   }
 
-  /* Reset link */
-  .reset-link {
-    font-family: 'Space Mono', monospace;
-    font-size: 0.7rem;
-    color: var(--muted);
-    text-align: center;
-    padding: 12px;
-    cursor: pointer;
-    text-decoration: underline;
-    text-decoration-color: transparent;
-    transition: color 0.2s;
-  }
-
-  .reset-link:active { color: var(--text); }
-
   /* Playlist URL tip */
   .playlist-tip {
     background: var(--surface);
@@ -437,7 +521,7 @@
 
 <!-- Setup -->
 <div id="setup">
-  <div class="setup-title">チャンネルの動画を<br><em>ランダム再生</em>する</div>
+  <div class="setup-title">複数チャンネルから動画を<br><em>ランダム再生</em>する</div>
 
   <div class="field">
     <label>YouTube Data API キー</label>
@@ -446,19 +530,27 @@
   </div>
 
   <div class="field">
-    <label>チャンネル URL または ID</label>
-    <input type="text" id="channelInput" placeholder="https://www.youtube.com/@channelname" autocomplete="off" autocorrect="off" spellcheck="false">
-    <div class="hint">@handle / channel/UC... / watch?v= の形式に対応</div>
+    <label>チャンネル URL または ID（複数指定可）</label>
+    <div id="channelList"></div>
+    <button type="button" class="btn-add-channel" onclick="addChannelInput()">＋ チャンネルを追加</button>
+    <div class="hint">@handle / channel/UC... / user/... / c/... の形式に対応</div>
+  </div>
+
+  <div class="shortcuts-section field" id="shortcutsSection" style="display:none;">
+    <label>保存済みチャンネル（タップで追加）</label>
+    <div id="shortcuts" class="shortcuts"></div>
   </div>
 
   <div class="row">
     <div class="field">
-      <label>取得動画数</label>
-      <input type="number" id="maxVideos" value="30" min="5" max="200">
+      <label>1ch あたり取得</label>
+      <input type="number" id="poolSize" value="30" min="5" max="200">
+      <div class="hint">API から取得する最大本数</div>
     </div>
     <div class="field">
-      <label>キュー本数</label>
-      <input type="number" id="queueSize" value="10" min="3" max="50">
+      <label>1ch あたり選出</label>
+      <input type="number" id="pickCount" value="5" min="1" max="50">
+      <div class="hint">取得分から無作為抽出</div>
     </div>
   </div>
 
@@ -474,7 +566,7 @@
 <!-- Loading -->
 <div class="loading" id="loading">
   <div class="spinner"></div>
-  <p>動画を取得中...<br>少しお待ちください</p>
+  <p id="loadingMsg">動画を取得中...<br>少しお待ちください</p>
 </div>
 
 <!-- Player -->
@@ -536,33 +628,142 @@
 </div>
 
 <script>
-let allVideos = [];
-let queue = [];
+// === State ===
+let allVideos = [];   // pool of picked videos (across channels) before final shuffle
+let queue = [];       // currently active shuffled queue
 let currentIndex = 0;
-let channelTitle = '';
 
-// --- Persist API key ---
-const savedKey = localStorage.getItem('yt_api_key');
-if (savedKey) document.getElementById('apiKey').value = savedKey;
+// === LocalStorage helpers ===
+const LS_API_KEY = 'yt_api_key';
+const LS_LAST_CHANNELS = 'yt_last_channels';     // last-used inputs
+const LS_SAVED_CHANNELS = 'yt_saved_channels';   // shortcut shelf [{id, input, title, lastUsed}]
 
+function lsGet(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key) ?? 'null') ?? fallback; }
+  catch { return fallback; }
+}
+function lsSet(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
+
+// === Init ===
+document.addEventListener('DOMContentLoaded', () => {
+  const savedKey = localStorage.getItem(LS_API_KEY);
+  if (savedKey) document.getElementById('apiKey').value = savedKey;
+
+  const lastChannels = lsGet(LS_LAST_CHANNELS, []);
+  if (lastChannels.length) {
+    lastChannels.forEach(v => addChannelInput(v));
+  } else {
+    addChannelInput();
+  }
+
+  renderShortcuts();
+});
+
+// === Error display ===
 function showError(msg) {
   const el = document.getElementById('errorMsg');
   el.textContent = msg;
   el.style.display = 'block';
 }
+function hideError() { document.getElementById('errorMsg').style.display = 'none'; }
 
-function hideError() {
-  document.getElementById('errorMsg').style.display = 'none';
+// === Channel-input rows ===
+function addChannelInput(value = '') {
+  const list = document.getElementById('channelList');
+  const row = document.createElement('div');
+  row.className = 'channel-row';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'https://www.youtube.com/@channelname';
+  input.value = value;
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'btn-remove-channel';
+  removeBtn.textContent = '×';
+  removeBtn.title = 'この行を削除';
+  removeBtn.onclick = () => {
+    row.remove();
+    if (!document.querySelectorAll('#channelList .channel-row').length) addChannelInput();
+  };
+
+  row.appendChild(input);
+  row.appendChild(removeBtn);
+  list.appendChild(row);
+  return input;
 }
 
-// Extract channel ID from various URL formats
+function getChannelInputs() {
+  return [...document.querySelectorAll('#channelList input')]
+    .map(i => i.value.trim())
+    .filter(v => v.length);
+}
+
+// === Saved-channel shortcuts ===
+function getSavedChannels() { return lsGet(LS_SAVED_CHANNELS, []); }
+function setSavedChannels(arr) { lsSet(LS_SAVED_CHANNELS, arr); }
+
+function saveShortcut(channelId, input, title) {
+  const list = getSavedChannels();
+  const i = list.findIndex(s => s.id === channelId);
+  const entry = { id: channelId, input, title, lastUsed: Date.now() };
+  if (i >= 0) list[i] = entry;
+  else list.push(entry);
+  list.sort((a, b) => b.lastUsed - a.lastUsed);
+  setSavedChannels(list);
+}
+
+function removeShortcut(channelId) {
+  setSavedChannels(getSavedChannels().filter(s => s.id !== channelId));
+  renderShortcuts();
+}
+
+function renderShortcuts() {
+  const section = document.getElementById('shortcutsSection');
+  const wrap = document.getElementById('shortcuts');
+  const list = getSavedChannels();
+  wrap.innerHTML = '';
+  if (!list.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+
+  list.forEach(s => {
+    const chip = document.createElement('div');
+    chip.className = 'shortcut-chip';
+
+    const label = document.createElement('span');
+    label.className = 'shortcut-label';
+    label.textContent = s.title;
+    label.title = s.input;
+    label.onclick = () => {
+      // If empty row exists, fill it; otherwise add new row
+      const inputs = [...document.querySelectorAll('#channelList input')];
+      const empty = inputs.find(i => !i.value.trim());
+      if (empty) empty.value = s.input;
+      else addChannelInput(s.input);
+    };
+
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'shortcut-x';
+    x.textContent = '×';
+    x.title = '保存済みから削除';
+    x.onclick = (e) => { e.stopPropagation(); removeShortcut(s.id); };
+
+    chip.appendChild(label);
+    chip.appendChild(x);
+    wrap.appendChild(chip);
+  });
+}
+
+// === Channel-ID resolution ===
 async function resolveChannelId(input, apiKey) {
   input = input.trim();
 
-  // Direct channel ID
   if (input.startsWith('UC') && input.length === 24) return input;
 
-  // URL patterns
   const patterns = [
     /youtube\.com\/channel\/(UC[\w-]{22})/,
     /youtube\.com\/@([\w.-]+)/,
@@ -575,38 +776,38 @@ async function resolveChannelId(input, apiKey) {
     if (m) {
       const val = m[1];
       if (val.startsWith('UC')) return val;
-
-      // handle / username: need to resolve via API
-      const type = input.includes('/@') ? 'forHandle' : 'forUsername';
-      const param = type === 'forHandle' ? `forHandle=${encodeURIComponent('@' + val)}` : `forUsername=${encodeURIComponent(val)}`;
+      const isHandle = input.includes('/@');
+      const param = isHandle
+        ? `forHandle=${encodeURIComponent('@' + val)}`
+        : `forUsername=${encodeURIComponent(val)}`;
       const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=id&${param}&key=${apiKey}`);
       const data = await res.json();
       if (data.items && data.items.length) return data.items[0].id;
-      throw new Error('チャンネルが見つかりません');
+      throw new Error(`チャンネルが見つかりません: ${input}`);
     }
   }
 
-  // Bare handle like @name
   if (input.startsWith('@')) {
     const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=id&forHandle=${encodeURIComponent(input)}&key=${apiKey}`);
     const data = await res.json();
     if (data.items && data.items.length) return data.items[0].id;
-    throw new Error('チャンネルが見つかりません');
+    throw new Error(`チャンネルが見つかりません: ${input}`);
   }
 
-  throw new Error('URLまたはチャンネルIDの形式が正しくありません');
+  throw new Error(`URLまたはチャンネルIDの形式が正しくありません: ${input}`);
 }
 
-async function fetchAllVideos(channelId, apiKey, maxVideos) {
-  // Get uploads playlist ID
+// === Fetch uploads for a single channel ===
+async function fetchChannelVideos(channelId, apiKey, maxVideos) {
   const chRes = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails,snippet&id=${channelId}&key=${apiKey}`);
   const chData = await chRes.json();
-  if (!chData.items || !chData.items.length) throw new Error('チャンネルの情報を取得できませんでした');
+  if (chData.error) throw new Error(chData.error.message);
+  if (!chData.items || !chData.items.length) throw new Error('チャンネル情報を取得できませんでした');
 
-  channelTitle = chData.items[0].snippet.title;
+  const title = chData.items[0].snippet.title;
   const uploadsId = chData.items[0].contentDetails.relatedPlaylists.uploads;
 
-  let videos = [];
+  const videos = [];
   let pageToken = '';
   const perPage = Math.min(maxVideos, 50);
 
@@ -614,7 +815,7 @@ async function fetchAllVideos(channelId, apiKey, maxVideos) {
     const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsId}&maxResults=${perPage}&key=${apiKey}${pageToken ? '&pageToken=' + pageToken : ''}`;
     const res = await fetch(url);
     const data = await res.json();
-    if (data.error) throw new Error(data.error.message);
+    if (data.error) throw new Error(`「${title}」: ${data.error.message}`);
 
     for (const item of (data.items || [])) {
       const s = item.snippet;
@@ -623,19 +824,20 @@ async function fetchAllVideos(channelId, apiKey, maxVideos) {
           id: s.resourceId.videoId,
           title: s.title,
           thumb: s.thumbnails?.medium?.url || s.thumbnails?.default?.url || '',
-          channel: s.channelTitle,
+          channelTitle: title,
+          channelId,
         });
       }
     }
-
     if (!data.nextPageToken) break;
     pageToken = data.nextPageToken;
     if (videos.length >= maxVideos) break;
   }
 
-  return videos.slice(0, maxVideos);
+  return { title, videos: videos.slice(0, maxVideos) };
 }
 
+// === Shuffle ===
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -645,30 +847,43 @@ function shuffle(arr) {
   return a;
 }
 
+function setLoadingMessage(msg) {
+  document.getElementById('loadingMsg').innerHTML = msg;
+}
+
+// === Main flow ===
 async function startShuffle() {
   hideError();
   const apiKey = document.getElementById('apiKey').value.trim();
-  const channelInput = document.getElementById('channelInput').value.trim();
-  const maxVideos = parseInt(document.getElementById('maxVideos').value) || 30;
-  const queueSize = parseInt(document.getElementById('queueSize').value) || 10;
+  const channelInputs = getChannelInputs();
+  const poolSize = Math.max(1, parseInt(document.getElementById('poolSize').value) || 30);
+  const pickCount = Math.max(1, parseInt(document.getElementById('pickCount').value) || 5);
 
   if (!apiKey) { showError('APIキーを入力してください'); return; }
-  if (!channelInput) { showError('チャンネルURLを入力してください'); return; }
+  if (!channelInputs.length) { showError('少なくとも1つのチャンネルURLを入力してください'); return; }
 
-  localStorage.setItem('yt_api_key', apiKey);
+  localStorage.setItem(LS_API_KEY, apiKey);
+  lsSet(LS_LAST_CHANNELS, channelInputs);
 
   document.getElementById('setup').style.display = 'none';
   document.getElementById('loading').style.display = 'flex';
   document.getElementById('startBtn').disabled = true;
 
   try {
-    const channelId = await resolveChannelId(channelInput, apiKey);
-    allVideos = await fetchAllVideos(channelId, apiKey, maxVideos);
+    const combined = [];
+    for (let i = 0; i < channelInputs.length; i++) {
+      setLoadingMessage(`チャンネル ${i + 1} / ${channelInputs.length} を取得中...<br>${escapeHtml(channelInputs[i])}`);
+      const channelId = await resolveChannelId(channelInputs[i], apiKey);
+      const { title, videos } = await fetchChannelVideos(channelId, apiKey, poolSize);
+      const picked = shuffle(videos).slice(0, Math.min(pickCount, videos.length));
+      combined.push(...picked);
+      saveShortcut(channelId, channelInputs[i], title);
+    }
 
-    if (!allVideos.length) throw new Error('動画が見つかりませんでした');
+    if (!combined.length) throw new Error('動画が見つかりませんでした');
 
-    const shuffled = shuffle(allVideos);
-    queue = shuffled.slice(0, Math.min(queueSize, shuffled.length));
+    allVideos = combined;
+    queue = shuffle(combined);
     currentIndex = 0;
 
     document.getElementById('loading').style.display = 'none';
@@ -683,15 +898,23 @@ async function startShuffle() {
   }
 }
 
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  })[c]);
+}
+
+// === Render ===
 function renderPlayer() {
   if (!queue.length) return;
   const v = queue[currentIndex];
   document.getElementById('npTitle').textContent = v.title;
-  document.getElementById('npChannel').textContent = channelTitle;
+  document.getElementById('npChannel').textContent = v.channelTitle || '';
   document.getElementById('npCount').textContent = `${currentIndex + 1} / ${queue.length}`;
-  document.getElementById('npThumb').src = v.thumb;
-  document.getElementById('npThumb').classList.add('pop');
-  setTimeout(() => document.getElementById('npThumb').classList.remove('pop'), 300);
+  const thumb = document.getElementById('npThumb');
+  thumb.src = v.thumb;
+  thumb.classList.add('pop');
+  setTimeout(() => thumb.classList.remove('pop'), 300);
 
   const pct = ((currentIndex + 1) / queue.length) * 100;
   document.getElementById('progressFill').style.width = pct + '%';
@@ -703,54 +926,61 @@ function renderQueue() {
   queue.forEach((v, i) => {
     const item = document.createElement('div');
     item.className = 'queue-item' + (i === currentIndex ? ' active' : '');
+
     const num = document.createElement('div');
     num.className = 'queue-num';
     num.textContent = i === currentIndex ? '▶' : (i + 1);
+
     const img = document.createElement('img');
     img.className = 'queue-thumb';
     img.src = v.thumb;
     img.alt = '';
     img.loading = 'lazy';
+
+    const text = document.createElement('div');
+    text.className = 'queue-text';
+
     const title = document.createElement('div');
     title.className = 'queue-title';
     title.textContent = v.title;
+
+    const channel = document.createElement('div');
+    channel.className = 'queue-channel';
+    channel.textContent = v.channelTitle || '';
+
+    text.appendChild(title);
+    text.appendChild(channel);
+
     item.appendChild(num);
     item.appendChild(img);
-    item.appendChild(title);
+    item.appendChild(text);
+
     item.onclick = () => { currentIndex = i; renderPlayer(); renderQueue(); };
     list.appendChild(item);
   });
 
-  // Scroll active into view
   const active = list.querySelector('.active');
   if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
+// === Playlist URL ===
 function buildPlaylistUrl() {
-  // Build a YouTube playlist URL with current and remaining videos
-  // YouTube accepts: youtube.com/watch_videos?video_ids=id1,id2,...
   const ids = [];
   for (let i = currentIndex; i < queue.length; i++) ids.push(queue[i].id);
-  // Wrap around
   for (let i = 0; i < currentIndex; i++) ids.push(queue[i].id);
-
-  const idList = ids.join(',');
-  return `https://www.youtube.com/watch_videos?video_ids=${idList}`;
+  return `https://www.youtube.com/watch_videos?video_ids=${ids.join(',')}`;
 }
 
 function openCurrent() {
-  const url = buildPlaylistUrl();
-  window.location.href = url;
+  window.location.href = buildPlaylistUrl();
 }
 
+// === Navigation ===
 function nextVideo() {
   if (currentIndex < queue.length - 1) {
     currentIndex++;
   } else {
-    // Reshuffle and loop
-    const shuffled = shuffle(allVideos);
-    const queueSize = parseInt(document.getElementById('queueSize').value) || 10;
-    queue = shuffled.slice(0, Math.min(queueSize, shuffled.length));
+    queue = shuffle(allVideos);
     currentIndex = 0;
   }
   renderPlayer();
@@ -764,9 +994,7 @@ function prevVideo() {
 }
 
 function reshuffleQueue() {
-  const shuffled = shuffle(allVideos);
-  const queueSize = queue.length;
-  queue = shuffled.slice(0, Math.min(queueSize, shuffled.length));
+  queue = shuffle(allVideos);
   currentIndex = 0;
   renderPlayer();
   renderQueue();
@@ -779,6 +1007,7 @@ function resetApp() {
   allVideos = [];
   queue = [];
   currentIndex = 0;
+  renderShortcuts();
 }
 </script>
 
